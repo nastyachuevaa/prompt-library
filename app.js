@@ -82,8 +82,8 @@ const formState = {
     grokRawText: "",
   },
   "character-appearance": {
-    name: "",
-    ageGender: "",
+    gender: "",
+    age: "",
     appearanceBase: "",
     faceDetails: "",
     bodyDetails: "",
@@ -302,26 +302,27 @@ function renderCharacterForm() {
 
     <div class="field-row">
       <label class="field">
-        <span>Имя / роль</span>
+        <span class="field-label">Пол <span class="required-mark" aria-hidden="true">*</span></span>
         <input
-          id="characterNameInput"
-          name="name"
+          id="characterGenderInput"
+          name="gender"
           type="text"
-          value="${escapeHTML(state.name)}"
-          placeholder="например, Amen, бариста, студентка"
+          required
+          value="${escapeHTML(state.gender)}"
+          placeholder="например, мужчина / женщина"
           autocomplete="off"
         />
       </label>
 
       <label class="field">
-        <span class="field-label">Пол и возраст <span class="required-mark" aria-hidden="true">*</span></span>
+        <span class="field-label">Возраст <span class="required-mark" aria-hidden="true">*</span></span>
         <input
-          id="characterAgeGenderInput"
-          name="ageGender"
+          id="characterAgeInput"
+          name="age"
           type="text"
           required
-          value="${escapeHTML(state.ageGender)}"
-          placeholder="например, мужчина 28-30"
+          value="${escapeHTML(state.age)}"
+          placeholder="например, 28-30"
           autocomplete="off"
         />
       </label>
@@ -602,7 +603,7 @@ function makeCharacterRequest() {
     "Пиши готовые промпты по-английски. Каждый вариант должен быть отдельной строкой.",
     "",
     "Обязательная структура каждого промпта:",
-    `${CHARACTER_PREFIX} {name or person}, {gender and age}, {ethnicity/general appearance}, {skin}, {hair}, {eyes}, {brows}, {cheekbones}, {nose}, {jawline}, {lips}, {gaze/expression}. {body}. {clothing}. ${CHARACTER_SUFFIX}`,
+    `${CHARACTER_PREFIX} {gender and age}, {ethnicity/general appearance}, {skin}, {hair}, {eyes}, {brows}, {cheekbones}, {nose}, {jawline}, {lips}, {gaze/expression}. {body}. {clothing}. ${CHARACTER_SUFFIX}`,
     "",
     "Общие требования ко всем вариантам:",
     "- realistic front-facing iPhone photo",
@@ -611,15 +612,16 @@ function makeCharacterRequest() {
     "- raw realistic iPhone photo",
     "- detailed face and body description, close to the structure of the example",
     "- no studio glamour, no fantasy, no cartoon, no plastic skin",
-    "- if age is not specified, make the person an adult around 25-35",
+    "- use the exact gender and age range from the brief",
     "",
     "Если я указала актеров или актрис как ориентиры: не копируй их, не делай lookalike, не упоминай имена в финальных промптах. Используй только общие черты типажа, пропорций, вайба и выражения лица, создавая новых оригинальных людей.",
     "Варианты должны отличаться друг от друга: форма лица, волосы, глаза, детали тела, одежда или выражение, но сохранять мои ключевые вводные.",
     "Верни только сами промпты: без объяснений, заголовков, нумерации и кавычек.",
+    "Не используй имена персонажей в финальных промптах.",
     "",
     "Мой бриф:",
-    briefLine("Имя / роль", fieldValue("characterNameInput") || state.name),
-    briefLine("Пол и возраст", fieldValue("characterAgeGenderInput") || state.ageGender),
+    briefLine("Пол", fieldValue("characterGenderInput") || state.gender),
+    briefLine("Возраст", fieldValue("characterAgeInput") || state.age),
     briefLine("Этничность / общий типаж", fieldValue("characterAppearanceBaseInput") || state.appearanceBase),
     briefLine("Лицо", fieldValue("characterFaceInput") || state.faceDetails),
     briefLine("Тело", fieldValue("characterBodyInput") || state.bodyDetails),
@@ -631,7 +633,8 @@ function makeCharacterRequest() {
 
 function getMissingCharacterFields() {
   return [
-    "characterAgeGenderInput",
+    "characterGenderInput",
+    "characterAgeInput",
     "characterAppearanceBaseInput",
     "characterFaceInput",
   ].filter((id) => !fieldValue(id));
@@ -853,8 +856,8 @@ function syncStateFromForm() {
   if (activeTopicId === "character-appearance") {
     const previousState = formState["character-appearance"];
     formState["character-appearance"] = {
-      name: fieldValue("characterNameInput"),
-      ageGender: fieldValue("characterAgeGenderInput"),
+      gender: fieldValue("characterGenderInput"),
+      age: fieldValue("characterAgeInput"),
       appearanceBase: fieldValue("characterAppearanceBaseInput"),
       faceDetails: fieldValue("characterFaceInput"),
       bodyDetails: fieldValue("characterBodyInput"),
@@ -1136,8 +1139,8 @@ function resetForm() {
 
   if (activeTopicId === "character-appearance") {
     formState["character-appearance"] = {
-      name: "",
-      ageGender: "",
+      gender: "",
+      age: "",
       appearanceBase: "",
       faceDetails: "",
       bodyDetails: "",
