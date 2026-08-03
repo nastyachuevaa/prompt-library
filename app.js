@@ -6,8 +6,8 @@ const CHARACTER_SUFFIX = "Plain gray studio wall background, natural indoor phon
 
 const topics = [
   {
-    id: "button-icon",
-    title: "LiveOps button",
+    id: "character-appearance",
+    title: "NB Appearance Options",
     category: "Изображения",
     enabled: true,
   },
@@ -18,8 +18,8 @@ const topics = [
     enabled: true,
   },
   {
-    id: "character-appearance",
-    title: "NB Appearance Options",
+    id: "button-icon",
+    title: "LiveOps button",
     category: "Изображения",
     enabled: true,
   },
@@ -90,7 +90,7 @@ const formState = {
 };
 
 const referencePayloads = new Map();
-let activeTopicId = "button-icon";
+let activeTopicId = "character-appearance";
 
 const els = {
   topicList: document.querySelector("#topicList"),
