@@ -137,6 +137,12 @@ h2 {
   line-height: 1.18;
 }
 
+h3 {
+  margin: 0;
+  font-size: 18px;
+  line-height: 1.25;
+}
+
 .topic-list {
   display: grid;
   gap: 10px;
@@ -338,6 +344,22 @@ textarea:focus {
 .custom-color-body {
   display: grid;
   gap: 8px;
+}
+
+.ai-helper {
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: #ffffff;
+}
+
+.ai-helper-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
 }
 
 .result-block,

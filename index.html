@@ -29,56 +29,11 @@
           <button class="ghost-button" type="button" id="resetButton">Сбросить</button>
         </div>
 
-        <form class="prompt-form" id="promptForm">
-          <label class="field">
-            <span>Предмет на кнопке</span>
-            <input
-              id="subjectInput"
-              name="subject"
-              type="text"
-              placeholder="например, календарь, ключ, корзина"
-              autocomplete="off"
-            />
-          </label>
-
-          <fieldset class="field color-field">
-            <legend>Цвет</legend>
-            <div class="swatch-grid" id="paletteOptions"></div>
-            <div class="custom-color-option" id="customColorOption">
-              <input
-                class="custom-color-radio"
-                id="customColorRadio"
-                type="radio"
-                name="palette"
-                value="custom"
-              />
-              <label class="custom-color-body" for="customColorInput">
-                <span>Свой цвет</span>
-                <input
-                  id="customColorInput"
-                  name="customColor"
-                  type="text"
-                  placeholder="например, серебряный / лавандовый"
-                  autocomplete="off"
-                />
-              </label>
-            </div>
-          </fieldset>
-
-          <label class="field">
-            <span>Дополнительные детали</span>
-            <textarea
-              id="detailsInput"
-              name="details"
-              rows="4"
-              placeholder="например, без фона, мягкий контур"
-            ></textarea>
-          </label>
-        </form>
+        <form class="prompt-form" id="promptForm"></form>
       </section>
 
       <section class="result-panel" aria-labelledby="resultTitle">
-        <section class="refs-section" aria-labelledby="refsTitle">
+        <section class="refs-section" id="refsSection" aria-labelledby="refsTitle">
           <div class="refs-header">
             <h2 id="refsTitle">Рефы</h2>
           </div>
