@@ -263,12 +263,6 @@ legend {
   gap: 4px;
 }
 
-.required-mark,
-.field .required-mark {
-  color: var(--coral);
-  font-weight: 900;
-}
-
 .color-field {
   gap: 12px;
 }
@@ -282,6 +276,10 @@ legend {
 
 .choice-field {
   min-width: 0;
+}
+
+.character-basics-row {
+  align-items: start;
 }
 
 .choice-grid {
@@ -339,12 +337,6 @@ legend {
   background: rgba(124, 58, 237, 0.07);
 }
 
-.fixed-brief .required-legend {
-  border-color: rgba(243, 111, 86, 0.24);
-  color: #b94b39;
-  background: rgba(243, 111, 86, 0.08);
-}
-
 input[type="text"],
 textarea {
   width: 100%;
@@ -385,19 +377,6 @@ input[type="text"]:focus,
 textarea:focus {
   border-color: rgba(124, 58, 237, 0.65);
   box-shadow: 0 0 0 4px rgba(124, 58, 237, 0.12);
-}
-
-.field-error,
-.field-error:focus {
-  border-color: rgba(243, 111, 86, 0.85);
-  box-shadow: 0 0 0 4px rgba(243, 111, 86, 0.12);
-}
-
-.choice-field.field-error {
-  padding: 8px;
-  border: 1px solid rgba(243, 111, 86, 0.85);
-  border-radius: var(--radius);
-  box-shadow: 0 0 0 4px rgba(243, 111, 86, 0.12);
 }
 
 .swatch-grid {

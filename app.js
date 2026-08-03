@@ -293,12 +293,11 @@ function renderCharacterForm() {
       <span>front-facing</span>
       <span>серый студийный фон</span>
       <span>raw realistic</span>
-      <span class="required-legend">* обязательное</span>
     </section>
 
-    <div class="field-row">
-      <fieldset class="field choice-field" id="characterGenderField">
-        <legend class="field-label">Пол <span class="required-mark" aria-hidden="true">*</span></legend>
+    <div class="field-row character-basics-row">
+      <div class="field choice-field" id="characterGenderField" role="radiogroup" aria-labelledby="characterGenderLabel">
+        <span class="field-label" id="characterGenderLabel">Пол</span>
         <div class="choice-grid">
           <label class="choice-option">
             <input
@@ -319,15 +318,14 @@ function renderCharacterForm() {
             <span>Женщина</span>
           </label>
         </div>
-      </fieldset>
+      </div>
 
       <label class="field">
-        <span class="field-label">Возраст <span class="required-mark" aria-hidden="true">*</span></span>
+        <span class="field-label">Возраст</span>
         <input
           id="characterAgeInput"
           name="age"
           type="text"
-          required
           value="${escapeHTML(state.age)}"
           placeholder="например, 28-30"
           autocomplete="off"
@@ -336,13 +334,12 @@ function renderCharacterForm() {
     </div>
 
     <label class="field">
-      <span class="field-label">Типаж / внешность <span class="required-mark" aria-hidden="true">*</span></span>
+      <span class="field-label">Типаж / внешность</span>
       <textarea
         class="compact-textarea character-appearance-textarea"
         id="characterAppearanceBaseInput"
         name="appearanceBase"
         rows="4"
-        required
         placeholder="раса/этничность, кожа, волосы, глаза, лицо, тело, особенности фигуры, вайб"
       >${escapeHTML(state.appearanceBase)}</textarea>
     </label>
@@ -569,7 +566,7 @@ function makeCharacterRequest() {
     "Пиши готовые промпты по-английски. Каждый вариант должен быть отдельной строкой.",
     "",
     "Обязательная структура каждого промпта:",
-    `${CHARACTER_PREFIX} {gender and age}, {race/ethnicity and overall type}, {skin}, {hair}, {eyes}, {brows}, {cheekbones}, {nose}, {jawline}, {lips}, {gaze/expression}. {body and silhouette if specified}. {clothing if specified}. ${CHARACTER_SUFFIX}`,
+    `${CHARACTER_PREFIX} {gender and age if provided, otherwise plausible adult person}, {race/ethnicity and overall type}, {skin}, {hair}, {eyes}, {brows}, {cheekbones}, {nose}, {jawline}, {lips}, {gaze/expression}. {body and silhouette if specified}. {clothing if specified}. ${CHARACTER_SUFFIX}`,
     "",
     "Общие требования ко всем вариантам:",
     "- realistic front-facing iPhone photo",
@@ -578,7 +575,8 @@ function makeCharacterRequest() {
     "- raw realistic iPhone photo",
     "- detailed face and body description, close to the structure of the example",
     "- no studio glamour, no fantasy, no cartoon, no plastic skin",
-    "- use the exact gender and age range from the brief",
+    "- use the gender and age range from the brief when they are provided",
+    "- if a field is empty or marked не указано, do not write не указано in the final prompt; choose a plausible realistic detail that fits the brief",
     "",
     "Если в типаже или дополнительных деталях указаны актеры или актрисы как ориентиры: не копируй их, не делай lookalike, не упоминай имена в финальных промптах. Используй только общие черты типажа, пропорций, вайба и выражения лица, создавая новых оригинальных людей.",
     "Варианты должны отличаться друг от друга: форма лица, волосы, глаза, детали тела, одежда или выражение, но сохранять мои ключевые вводные.",
@@ -591,34 +589,6 @@ function makeCharacterRequest() {
     briefLine("Типаж / внешность", fieldValue("characterAppearanceBaseInput") || state.appearanceBase),
     briefLine("Дополнительно", fieldValue("characterExtraInput") || state.extra),
   ].join("\n");
-}
-
-function getMissingCharacterFields() {
-  return [
-    "characterGenderField",
-    "characterAgeInput",
-    "characterAppearanceBaseInput",
-  ].filter((id) => {
-    if (id === "characterGenderField") return !getCharacterGenderValue();
-    return !fieldValue(id);
-  });
-}
-
-function markMissingFields(fieldIds) {
-  document.querySelectorAll(".field-error").forEach((field) => {
-    field.classList.remove("field-error");
-  });
-
-  fieldIds.forEach((id) => {
-    document.querySelector(`#${id}`)?.classList.add("field-error");
-  });
-
-  const firstMissing = document.querySelector(`#${fieldIds[0]}`);
-  if (fieldIds[0] === "characterGenderField") {
-    firstMissing?.querySelector("input")?.focus();
-  } else {
-    firstMissing?.focus();
-  }
 }
 
 function normalizePromptLine(line) {
@@ -1009,13 +979,6 @@ async function generateWithGrok() {
 async function generateCharacterVariants() {
   syncStateFromForm();
 
-  const missingFields = getMissingCharacterFields();
-  if (missingFields.length) {
-    markMissingFields(missingFields);
-    setStatus("Заполни поля со звездочкой");
-    return;
-  }
-
   const endpoint = getGenerateEndpoint();
   if (!endpoint) {
     setStatus("Backend еще не подключен");
@@ -1198,12 +1161,6 @@ function handleFormInput(event) {
   }
 
   if (activeTopicId === "character-appearance") {
-    if (event.target.matches(".field-error") && event.target.value.trim()) {
-      event.target.classList.remove("field-error");
-    }
-    if (event.target.matches('input[name="characterGender"]')) {
-      document.querySelector("#characterGenderField")?.classList.remove("field-error");
-    }
     clearCharacterResults();
   }
 
