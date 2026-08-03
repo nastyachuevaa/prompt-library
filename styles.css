@@ -457,6 +457,10 @@ textarea:focus {
   gap: 10px;
 }
 
+.seedream-mode-grid {
+  margin-top: 10px;
+}
+
 .mode-option {
   position: relative;
   display: flex;
