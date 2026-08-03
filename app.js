@@ -250,7 +250,7 @@ function renderSeedreamForm() {
       </div>
       <div class="ai-helper-grid">
         <label class="field">
-          <span>Мое желание</span>
+          <span>Примерный запрос</span>
           <textarea
             id="seedreamGrokIdeaInput"
             name="grokIdea"
@@ -529,7 +529,7 @@ function makePrompt() {
 }
 
 function makeGrokRequest() {
-  const idea = fieldValue("seedreamGrokIdeaInput") || "*мое желание для серии изображений*";
+  const idea = fieldValue("seedreamGrokIdeaInput") || "*примерный запрос для серии изображений*";
   const count = Math.min(Math.max(Number(fieldValue("seedreamGrokCountInput")) || 10, 1), 30);
   const countPhrase = count === 1 ? "1 готовый промпт" : `${count} разных готовых промптов`;
 
@@ -538,10 +538,10 @@ function makeGrokRequest() {
     "Каждый промпт должен начинаться строго с этой фразы, без изменений:",
     SEEDREAM_PREFIX,
     "",
-    "После этой фразы развей мою идею в разные конкретные сцены. Пиши по-английски. Каждый вариант должен быть отдельной строкой и полностью готовым промптом для генерации.",
+    "После этой фразы развей мой примерный запрос в разные конкретные сцены. Пиши по-английски. Каждый вариант должен быть отдельной строкой и полностью готовым промптом для генерации.",
     "Сохрани вайб candid iPhone / phone quality / imperfect real-life shot. Верни только сами промпты: без объяснений, заголовков, нумерации, кавычек и пояснений.",
     "",
-    `Мое желание: ${idea}`,
+    `Примерный запрос: ${idea}`,
   ].join("\n");
 }
 
