@@ -9,21 +9,18 @@ const topics = [
     id: "button-icon",
     title: "LiveOps button",
     category: "Изображения",
-    meta: "",
     enabled: true,
   },
   {
     id: "seedream-realism",
     title: "OF style SeeDream",
     category: "Изображения",
-    meta: "Айфон-кадр, сцена, люди, вайб",
     enabled: true,
   },
   {
     id: "character-appearance",
     title: "NB Appearance Options",
     category: "Изображения",
-    meta: "Люди, типаж, возраст, детали",
     enabled: true,
   },
 ];
@@ -138,7 +135,6 @@ function renderTopics() {
           ${topic.id === activeTopicId ? 'aria-current="true"' : ""}
         >
           <span class="topic-title">${topic.title}</span>
-          ${topic.meta ? `<span class="topic-meta">${topic.meta}</span>` : ""}
         </button>
       `,
     )
