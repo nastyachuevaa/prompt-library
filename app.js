@@ -331,7 +331,7 @@ function renderCharacterForm() {
     </div>
 
     <label class="field">
-      <span class="field-label">Типаж / внешность</span>
+      <span class="field-label">Описание</span>
       <textarea
         class="compact-textarea character-appearance-textarea"
         id="characterAppearanceBaseInput"
@@ -585,7 +585,7 @@ function makeCharacterRequest() {
     "- if a field is empty or marked не указано, do not write не указано in the final prompt; choose a plausible realistic detail that fits the brief",
     "- treat Запреты as strict negative constraints: do not add those features, style choices, similarities, clothes, body traits, or moods to the character",
     "",
-    "Если в типаже указаны актеры или актрисы как ориентиры: не копируй их, не делай lookalike, не упоминай имена в финальных промптах. Используй только общие черты типажа, пропорций, вайба и выражения лица, создавая новых оригинальных людей.",
+    "Если в описании указаны актеры или актрисы как ориентиры: не копируй их, не делай lookalike, не упоминай имена в финальных промптах. Используй только общие черты типажа, пропорций, вайба и выражения лица, создавая новых оригинальных людей.",
     "Варианты должны отличаться друг от друга: форма лица, волосы, глаза, детали тела, одежда или выражение, но сохранять мои ключевые вводные.",
     "Верни только сами промпты: без объяснений, заголовков, нумерации и кавычек.",
     "Не используй имена персонажей в финальных промптах.",
@@ -593,7 +593,7 @@ function makeCharacterRequest() {
     "Мой бриф:",
     briefLine("Пол", getCharacterGenderValue() || state.gender),
     briefLine("Возраст", fieldValue("characterAgeInput") || state.age),
-    briefLine("Типаж / внешность", fieldValue("characterAppearanceBaseInput") || state.appearanceBase),
+    briefLine("Описание", fieldValue("characterAppearanceBaseInput") || state.appearanceBase),
     briefLine("Запреты", fieldValue("characterAvoidInput") || state.avoid),
   ].join("\n");
 }
