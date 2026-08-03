@@ -82,7 +82,7 @@ const formState = {
     gender: "",
     age: "",
     appearanceBase: "",
-    extra: "",
+    avoid: "",
     count: "10",
     results: [],
     rawText: "",
@@ -343,14 +343,14 @@ function renderCharacterForm() {
 
     <div class="field-row compact-row">
       <label class="field">
-        <span>Дополнительно</span>
+        <span>Запреты</span>
         <textarea
           class="compact-textarea"
-          id="characterExtraInput"
-          name="extra"
+          id="characterAvoidInput"
+          name="avoid"
           rows="3"
-          placeholder="одежда, актерские ориентиры, настроение, запреты, важные детали"
-        >${escapeHTML(state.extra)}</textarea>
+          placeholder="что точно не нужно: борода, татуировки, улыбка, яркий макияж, похожесть на конкретного актера"
+        >${escapeHTML(state.avoid)}</textarea>
       </label>
 
       <label class="field small-field">
@@ -583,8 +583,9 @@ function makeCharacterRequest() {
     "- no studio glamour, no fantasy, no cartoon, no plastic skin",
     "- use the selected gender and age range from the brief when they are provided",
     "- if a field is empty or marked не указано, do not write не указано in the final prompt; choose a plausible realistic detail that fits the brief",
+    "- treat Запреты as strict negative constraints: do not add those features, style choices, similarities, clothes, body traits, or moods to the character",
     "",
-    "Если в типаже или дополнительных деталях указаны актеры или актрисы как ориентиры: не копируй их, не делай lookalike, не упоминай имена в финальных промптах. Используй только общие черты типажа, пропорций, вайба и выражения лица, создавая новых оригинальных людей.",
+    "Если в типаже указаны актеры или актрисы как ориентиры: не копируй их, не делай lookalike, не упоминай имена в финальных промптах. Используй только общие черты типажа, пропорций, вайба и выражения лица, создавая новых оригинальных людей.",
     "Варианты должны отличаться друг от друга: форма лица, волосы, глаза, детали тела, одежда или выражение, но сохранять мои ключевые вводные.",
     "Верни только сами промпты: без объяснений, заголовков, нумерации и кавычек.",
     "Не используй имена персонажей в финальных промптах.",
@@ -593,7 +594,7 @@ function makeCharacterRequest() {
     briefLine("Пол", getCharacterGenderValue() || state.gender),
     briefLine("Возраст", fieldValue("characterAgeInput") || state.age),
     briefLine("Типаж / внешность", fieldValue("characterAppearanceBaseInput") || state.appearanceBase),
-    briefLine("Дополнительно", fieldValue("characterExtraInput") || state.extra),
+    briefLine("Запреты", fieldValue("characterAvoidInput") || state.avoid),
   ].join("\n");
 }
 
@@ -804,7 +805,7 @@ function syncStateFromForm() {
       gender: getCharacterGenderValue(),
       age: fieldValue("characterAgeInput"),
       appearanceBase: fieldValue("characterAppearanceBaseInput"),
-      extra: fieldValue("characterExtraInput"),
+      avoid: fieldValue("characterAvoidInput"),
       count: fieldValue("characterCountInput") || "10",
       results: previousState.results || [],
       rawText: previousState.rawText || "",
@@ -1076,7 +1077,7 @@ function resetForm() {
       gender: "",
       age: "",
       appearanceBase: "",
-      extra: "",
+      avoid: "",
       count: "10",
       results: [],
       rawText: "",
