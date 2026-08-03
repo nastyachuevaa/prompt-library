@@ -79,6 +79,8 @@ const formState = {
     directIdea: "",
     grokIdea: "",
     grokCount: "10",
+    grokResults: [],
+    grokRawText: "",
   },
 };
 
@@ -92,6 +94,7 @@ const els = {
   promptForm: document.querySelector("#promptForm"),
   resultTitle: document.querySelector("#resultTitle"),
   promptOutput: document.querySelector("#promptOutput"),
+  promptCards: document.querySelector("#promptCards"),
   copyButton: document.querySelector("#copyButton"),
   saveButton: document.querySelector("#saveButton"),
   resetButton: document.querySelector("#resetButton"),
@@ -202,26 +205,32 @@ function renderSeedreamForm() {
   const state = formState["seedream-realism"];
 
   els.promptForm.innerHTML = `
-    <fieldset class="field">
+    <fieldset class="field seedream-mode-field">
       <legend>Опция</legend>
-      <div class="mode-grid">
-        <label class="mode-option">
+      <div class="mode-grid seedream-mode-grid">
+        <label class="mode-option direct-mode">
           <input
             type="radio"
             name="seedreamMode"
             value="direct"
             ${state.mode === "direct" ? "checked" : ""}
           />
-          <span>Добавить мою идею</span>
+          <span class="mode-copy">
+            <span class="mode-title">Добавить мою идею</span>
+            <span class="mode-meta">Один готовый промпт</span>
+          </span>
         </label>
-        <label class="mode-option">
+        <label class="mode-option ai-mode">
           <input
             type="radio"
             name="seedreamMode"
             value="grok"
             ${state.mode === "grok" ? "checked" : ""}
           />
-          <span>Развить через Grok</span>
+          <span class="mode-copy">
+            <span class="mode-title">Развить через Grok</span>
+            <span class="mode-meta">Подборка отдельных вариантов</span>
+          </span>
         </label>
       </div>
     </fieldset>
@@ -242,26 +251,28 @@ function renderSeedreamForm() {
       <div class="ai-helper-heading">
         <h3 id="aiHelperTitle">Grok</h3>
       </div>
-      <label class="field">
-        <span>Мое желание</span>
-        <textarea
-          id="seedreamGrokIdeaInput"
-          name="grokIdea"
-          rows="6"
-          placeholder="например, хочу 10 разных сцен про девушку после свидания, снято как случайный селфи-кадр"
-        >${escapeHTML(state.grokIdea)}</textarea>
-      </label>
-      <label class="field small-field">
-        <span>Сколько промптов</span>
-        <input
-          id="seedreamGrokCountInput"
-          name="grokCount"
-          type="number"
-          min="1"
-          max="30"
-          value="${escapeHTML(state.grokCount)}"
-        />
-      </label>
+      <div class="ai-helper-grid">
+        <label class="field">
+          <span>Мое желание</span>
+          <textarea
+            id="seedreamGrokIdeaInput"
+            name="grokIdea"
+            rows="7"
+            placeholder="например, хочу 10 разных сцен про девушку после свидания, снято как случайный селфи-кадр"
+          >${escapeHTML(state.grokIdea)}</textarea>
+        </label>
+        <label class="field small-field">
+          <span>Сколько</span>
+          <input
+            id="seedreamGrokCountInput"
+            name="grokCount"
+            type="number"
+            min="1"
+            max="30"
+            value="${escapeHTML(state.grokCount)}"
+          />
+        </label>
+      </div>
       <div class="ai-actions">
         <button class="primary-button" type="button" id="grokGenerateButton">Сгенерировать через Grok</button>
         <button class="ghost-button" type="button" id="aiRequestButton">Скопировать запрос</button>
@@ -403,10 +414,17 @@ function makeSeedreamPrompt() {
   return `${SEEDREAM_PREFIX} ${idea}`;
 }
 
+function getSeedreamMode() {
+  return document.querySelector('input[name="seedreamMode"]:checked')?.value || "direct";
+}
+
+function isSeedreamGrokMode() {
+  return activeTopicId === "seedream-realism" && formState["seedream-realism"].mode === "grok";
+}
+
 function makePrompt() {
   if (activeTopicId === "seedream-realism") {
-    const mode = document.querySelector('input[name="seedreamMode"]:checked')?.value || "direct";
-    if (mode === "grok") return makeGrokRequest();
+    if (getSeedreamMode() === "grok") return makeGrokRequest();
     return makeSeedreamPrompt();
   }
 
@@ -416,17 +434,104 @@ function makePrompt() {
 function makeGrokRequest() {
   const idea = fieldValue("seedreamGrokIdeaInput") || "*мое желание для серии изображений*";
   const count = Math.min(Math.max(Number(fieldValue("seedreamGrokCountInput")) || 10, 1), 30);
+  const countPhrase = count === 1 ? "1 готовый промпт" : `${count} разных готовых промптов`;
 
   return [
-    `Сделай ${count} разных промптов для реалистичных изображений в Seedream.`,
+    `Сделай ${countPhrase} для реалистичных изображений в Seedream.`,
     "Каждый промпт должен начинаться строго с этой фразы, без изменений:",
     SEEDREAM_PREFIX,
     "",
     "После этой фразы развей мою идею в разные конкретные сцены. Пиши по-английски. Каждый вариант должен быть отдельной строкой и полностью готовым промптом для генерации.",
-    "Сохрани вайб candid iPhone / phone quality / imperfect real-life shot. Не добавляй объяснения, заголовки и нумерацию.",
+    "Сохрани вайб candid iPhone / phone quality / imperfect real-life shot. Верни только сами промпты: без объяснений, заголовков, нумерации, кавычек и пояснений.",
     "",
     `Мое желание: ${idea}`,
   ].join("\n");
+}
+
+function normalizePromptLine(line) {
+  return line
+    .replace(/^\s*(?:\d+[\).:\-]\s*|[-*•]\s*)/, "")
+    .replace(/^["'“”]+|["'“”]+$/g, "")
+    .trim();
+}
+
+function ensureSeedreamPrefix(prompt) {
+  const trimmed = normalizePromptLine(prompt);
+  if (!trimmed) return "";
+
+  if (trimmed.toLowerCase().startsWith(SEEDREAM_PREFIX.toLowerCase())) {
+    return trimmed;
+  }
+
+  return `${SEEDREAM_PREFIX} ${trimmed}`;
+}
+
+function parseJSONPromptList(text) {
+  try {
+    const parsed = JSON.parse(text);
+    if (Array.isArray(parsed)) return parsed.filter(Boolean).map((item) => String(item));
+  } catch {
+    // Grok is asked for plain lines, so JSON is only a defensive fallback.
+  }
+
+  return [];
+}
+
+function isIntroLine(line) {
+  return /^(sure|here|below|these are|prompts?:|конечно|вот|держи)\b/i.test(line);
+}
+
+function parseGrokPrompts(text) {
+  const jsonPrompts = parseJSONPromptList(text);
+  if (jsonPrompts.length) return jsonPrompts.map(ensureSeedreamPrefix).filter(Boolean);
+
+  const lines = String(text)
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  if (!lines.length) return [];
+
+  const prompts = [];
+  let current = "";
+  const prefixStart = SEEDREAM_PREFIX.slice(0, 42).toLowerCase();
+  const hasStructuredLines = lines.some((line) => {
+    const cleaned = normalizePromptLine(line);
+    return cleaned.toLowerCase().startsWith(prefixStart) || /^\s*(?:\d+[\).:\-]|[-*•])\s*/.test(line);
+  });
+
+  if (!hasStructuredLines) {
+    return lines.filter((line) => !isIntroLine(line)).map(ensureSeedreamPrefix).filter(Boolean);
+  }
+
+  lines.forEach((line) => {
+    const cleaned = normalizePromptLine(line);
+    if (!cleaned || (!current && isIntroLine(cleaned))) return;
+
+    const startsLikePrompt = cleaned.toLowerCase().startsWith(prefixStart);
+    const startsLikeListItem = /^\s*(?:\d+[\).:\-]|[-*•])\s*/.test(line);
+
+    if ((startsLikePrompt || startsLikeListItem) && current) {
+      prompts.push(current);
+      current = cleaned;
+      return;
+    }
+
+    current = current ? `${current} ${cleaned}` : cleaned;
+  });
+
+  if (current) prompts.push(current);
+
+  return prompts.map(ensureSeedreamPrefix).filter(Boolean);
+}
+
+function getGrokResults() {
+  return formState["seedream-realism"].grokResults || [];
+}
+
+function clearGrokResults() {
+  formState["seedream-realism"].grokResults = [];
+  formState["seedream-realism"].grokRawText = "";
 }
 
 function getGenerateEndpoint() {
@@ -458,22 +563,76 @@ function syncStateFromForm() {
   }
 
   if (activeTopicId === "seedream-realism") {
+    const previousState = formState["seedream-realism"];
     formState["seedream-realism"] = {
-      mode: document.querySelector('input[name="seedreamMode"]:checked')?.value || "direct",
+      mode: getSeedreamMode(),
       directIdea: fieldValue("seedreamDirectIdeaInput"),
       grokIdea: fieldValue("seedreamGrokIdeaInput"),
       grokCount: fieldValue("seedreamGrokCountInput") || "10",
+      grokResults: previousState.grokResults || [],
+      grokRawText: previousState.grokRawText || "",
     };
   }
 }
 
+function renderPromptCards(prompts) {
+  if (!prompts.length) {
+    els.promptCards.innerHTML = '<div class="results-empty">Пока нет вариантов</div>';
+    return;
+  }
+
+  els.promptCards.innerHTML = prompts
+    .map(
+      (prompt, index) => `
+        <article class="prompt-card">
+          <header class="prompt-card-header">
+            <span class="prompt-number">${String(index + 1).padStart(2, "0")}</span>
+            <div class="prompt-card-actions">
+              <button class="ghost-button compact" type="button" data-copy-result="${index}">Копировать</button>
+              <button class="ghost-button compact" type="button" data-save-result="${index}">Сохранить</button>
+            </div>
+          </header>
+          <p>${escapeHTML(prompt)}</p>
+        </article>
+      `,
+    )
+    .join("");
+}
+
+function renderStandardOutput(title, prompt) {
+  els.resultTitle.textContent = title;
+  els.promptOutput.hidden = false;
+  els.promptCards.hidden = true;
+  els.copyButton.hidden = false;
+  els.saveButton.hidden = false;
+  els.copyButton.textContent = "Копировать";
+  els.saveButton.textContent = "Сохранить";
+  els.promptOutput.value = prompt;
+}
+
+function renderGrokOutput() {
+  const prompts = getGrokResults();
+
+  els.resultTitle.textContent = prompts.length ? "Варианты Grok" : "Grok";
+  els.promptOutput.hidden = true;
+  els.promptCards.hidden = false;
+  els.copyButton.hidden = prompts.length === 0;
+  els.saveButton.hidden = prompts.length === 0;
+  els.copyButton.textContent = "Копировать все";
+  els.saveButton.textContent = "Сохранить все";
+  els.promptOutput.value = prompts.length ? prompts.join("\n\n") : makeGrokRequest();
+  renderPromptCards(prompts);
+}
+
 function updatePrompt() {
   syncStateFromForm();
-  els.resultTitle.textContent =
-    activeTopicId === "seedream-realism" && formState["seedream-realism"].mode === "grok"
-      ? "Запрос для Grok"
-      : "Готовый промпт";
-  els.promptOutput.value = makePrompt();
+
+  if (isSeedreamGrokMode()) {
+    renderGrokOutput();
+  } else {
+    renderStandardOutput("Готовый промпт", makePrompt());
+  }
+
   updateAccentColor();
 }
 
@@ -543,6 +702,8 @@ async function generateWithGrok() {
       button.disabled = true;
       button.textContent = "Генерирую...";
     }
+    clearGrokResults();
+    renderGrokOutput();
     setStatus("Генерирую...");
 
     const response = await fetch(endpoint, {
@@ -560,9 +721,11 @@ async function generateWithGrok() {
       throw new Error(data?.error || "Generation failed");
     }
 
-    els.resultTitle.textContent = "Ответ Grok";
-    els.promptOutput.value = data.text;
-    setStatus("Готово");
+    const prompts = parseGrokPrompts(data.text);
+    formState["seedream-realism"].grokRawText = data.text;
+    formState["seedream-realism"].grokResults = prompts.length ? prompts : [data.text.trim()].filter(Boolean);
+    renderGrokOutput();
+    setStatus(`Готово: ${formState["seedream-realism"].grokResults.length}`);
   } catch {
     setStatus("Не удалось сгенерировать");
   } finally {
@@ -593,6 +756,21 @@ function setSaved(items) {
   localStorage.setItem(getStorageKey(), JSON.stringify(items));
 }
 
+function getCurrentOutputText() {
+  if (isSeedreamGrokMode() && getGrokResults().length) {
+    return getGrokResults().join("\n\n");
+  }
+
+  return els.promptOutput.value;
+}
+
+function getPromptsToSave() {
+  if (isSeedreamGrokMode() && getGrokResults().length) return getGrokResults();
+
+  const prompt = els.promptOutput.value.trim();
+  return prompt ? [prompt] : [];
+}
+
 function renderSaved() {
   const saved = getSaved();
 
@@ -614,14 +792,17 @@ function renderSaved() {
 }
 
 function saveCurrentPrompt() {
-  const prompt = els.promptOutput.value.trim();
-  if (!prompt) return;
+  const prompts = getPromptsToSave();
+  if (!prompts.length) return;
 
   const saved = getSaved();
-  const withoutDuplicate = saved.filter((item) => item.prompt !== prompt);
-  setSaved([{ prompt, createdAt: new Date().toISOString() }, ...withoutDuplicate].slice(0, 12));
+  const uniquePrompts = [...new Set(prompts.map((prompt) => prompt.trim()).filter(Boolean))];
+  const withoutDuplicate = saved.filter((item) => !uniquePrompts.includes(item.prompt));
+  const newItems = uniquePrompts.map((prompt) => ({ prompt, createdAt: new Date().toISOString() }));
+
+  setSaved([...newItems, ...withoutDuplicate].slice(0, 24));
   renderSaved();
-  setStatus("Сохранено");
+  setStatus(uniquePrompts.length > 1 ? "Сохранено все" : "Сохранено");
 }
 
 function resetForm() {
@@ -640,6 +821,8 @@ function resetForm() {
       directIdea: "",
       grokIdea: "",
       grokCount: "10",
+      grokResults: [],
+      grokRawText: "",
     };
   }
 
@@ -708,15 +891,26 @@ function bindSeedreamControls() {
   });
 }
 
+function handleFormInput(event) {
+  if (
+    activeTopicId === "seedream-realism" &&
+    event.target.matches("#seedreamGrokIdeaInput, #seedreamGrokCountInput")
+  ) {
+    clearGrokResults();
+  }
+
+  updatePrompt();
+}
+
 function bindEvents() {
   els.topicList.addEventListener("click", (event) => {
     const button = event.target.closest("[data-topic]");
     if (button) switchTopic(button.dataset.topic);
   });
 
-  els.promptForm.addEventListener("input", updatePrompt);
+  els.promptForm.addEventListener("input", handleFormInput);
   els.promptForm.addEventListener("change", updatePrompt);
-  els.copyButton.addEventListener("click", () => copyText(els.promptOutput.value));
+  els.copyButton.addEventListener("click", () => copyText(getCurrentOutputText()));
   els.saveButton.addEventListener("click", saveCurrentPrompt);
   els.resetButton.addEventListener("click", resetForm);
   els.clearSavedButton.addEventListener("click", () => {
@@ -738,6 +932,24 @@ function bindEvents() {
     }
 
     window.open(reference.src, "_blank");
+  });
+  els.promptCards.addEventListener("click", (event) => {
+    const copyButton = event.target.closest("[data-copy-result]");
+    const saveButton = event.target.closest("[data-save-result]");
+    const index = Number(copyButton?.dataset.copyResult ?? saveButton?.dataset.saveResult);
+    const prompt = getGrokResults()[index];
+    if (!prompt) return;
+
+    if (copyButton) {
+      copyText(prompt);
+      return;
+    }
+
+    const saved = getSaved();
+    const withoutDuplicate = saved.filter((item) => item.prompt !== prompt);
+    setSaved([{ prompt, createdAt: new Date().toISOString() }, ...withoutDuplicate].slice(0, 24));
+    renderSaved();
+    setStatus("Сохранено");
   });
   els.savedList.addEventListener("click", (event) => {
     const button = event.target.closest("[data-copy-saved]");
