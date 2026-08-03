@@ -23,7 +23,7 @@ const topics = [
     id: "character-appearance",
     title: "Nano Banana внешность",
     category: "Изображения",
-    meta: "Люди, типаж, лицо, тело, одежда",
+    meta: "Люди, типаж, возраст, детали",
     enabled: true,
   },
 ];
