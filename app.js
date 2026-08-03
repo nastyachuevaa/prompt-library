@@ -75,12 +75,10 @@ const formState = {
     details: "",
   },
   "seedream-realism": {
-    scene: "",
-    people: "",
-    place: "",
-    mood: "",
-    details: "",
-    aiIdea: "",
+    mode: "direct",
+    directIdea: "",
+    grokIdea: "",
+    grokCount: "10",
   },
 };
 
@@ -92,6 +90,7 @@ const els = {
   builderCategory: document.querySelector("#builderCategory"),
   builderTitle: document.querySelector("#builderTitle"),
   promptForm: document.querySelector("#promptForm"),
+  resultTitle: document.querySelector("#resultTitle"),
   promptOutput: document.querySelector("#promptOutput"),
   copyButton: document.querySelector("#copyButton"),
   saveButton: document.querySelector("#saveButton"),
@@ -203,75 +202,66 @@ function renderSeedreamForm() {
   const state = formState["seedream-realism"];
 
   els.promptForm.innerHTML = `
-    <label class="field">
-      <span>Сцена / момент</span>
-      <textarea
-        id="seedreamSceneInput"
-        name="scene"
-        rows="3"
-        placeholder="например, девушка смеется в лифте, кадр будто снят случайно"
-      >${escapeHTML(state.scene)}</textarea>
-    </label>
+    <fieldset class="field">
+      <legend>Опция</legend>
+      <div class="mode-grid">
+        <label class="mode-option">
+          <input
+            type="radio"
+            name="seedreamMode"
+            value="direct"
+            ${state.mode === "direct" ? "checked" : ""}
+          />
+          <span>Добавить мою идею</span>
+        </label>
+        <label class="mode-option">
+          <input
+            type="radio"
+            name="seedreamMode"
+            value="grok"
+            ${state.mode === "grok" ? "checked" : ""}
+          />
+          <span>Развить через Grok</span>
+        </label>
+      </div>
+    </fieldset>
 
-    <label class="field">
-      <span>Люди в кадре</span>
-      <input
-        id="seedreamPeopleInput"
-        name="people"
-        type="text"
-        value="${escapeHTML(state.people)}"
-        placeholder="например, две подруги, пара, один человек"
-        autocomplete="off"
-      />
-    </label>
+    <div class="mode-panel" data-mode-panel="direct" ${state.mode === "direct" ? "" : "hidden"}>
+      <label class="field">
+        <span>Моя идея</span>
+        <textarea
+          id="seedreamDirectIdeaInput"
+          name="directIdea"
+          rows="6"
+          placeholder="например, девушка смеется в лифте, кадр будто снят случайно"
+        >${escapeHTML(state.directIdea)}</textarea>
+      </label>
+    </div>
 
-    <label class="field">
-      <span>Место</span>
-      <input
-        id="seedreamPlaceInput"
-        name="place"
-        type="text"
-        value="${escapeHTML(state.place)}"
-        placeholder="например, вечерняя улица, кафе, ванная, машина"
-        autocomplete="off"
-      />
-    </label>
-
-    <label class="field">
-      <span>Вайб</span>
-      <input
-        id="seedreamMoodInput"
-        name="mood"
-        type="text"
-        value="${escapeHTML(state.mood)}"
-        placeholder="например, флирт, неловкость, теплый хаос"
-        autocomplete="off"
-      />
-    </label>
-
-    <label class="field">
-      <span>Дополнительные детали</span>
-      <textarea
-        id="seedreamDetailsInput"
-        name="details"
-        rows="4"
-        placeholder="например, imperfect crop, wet hair, flash reflection"
-      >${escapeHTML(state.details)}</textarea>
-    </label>
-
-    <section class="ai-helper" aria-labelledby="aiHelperTitle">
+    <section class="ai-helper mode-panel" data-mode-panel="grok" aria-labelledby="aiHelperTitle" ${state.mode === "grok" ? "" : "hidden"}>
       <div class="ai-helper-heading">
-        <h3 id="aiHelperTitle">ИИ-помощник</h3>
+        <h3 id="aiHelperTitle">Grok</h3>
         <button class="ghost-button compact" type="button" id="aiRequestButton">Запрос для Grok</button>
       </div>
       <label class="field">
-        <span>Черновик идеи</span>
+        <span>Мое желание</span>
         <textarea
-          id="aiIdeaInput"
-          name="aiIdea"
-          rows="4"
-          placeholder="например, хочу сцену про девушку после свидания, снято как случайный селфи-кадр"
-        >${escapeHTML(state.aiIdea)}</textarea>
+          id="seedreamGrokIdeaInput"
+          name="grokIdea"
+          rows="6"
+          placeholder="например, хочу 10 разных сцен про девушку после свидания, снято как случайный селфи-кадр"
+        >${escapeHTML(state.grokIdea)}</textarea>
+      </label>
+      <label class="field small-field">
+        <span>Сколько промптов</span>
+        <input
+          id="seedreamGrokCountInput"
+          name="grokCount"
+          type="number"
+          min="1"
+          max="30"
+          value="${escapeHTML(state.grokCount)}"
+        />
       </label>
     </section>
   `;
@@ -405,40 +395,34 @@ function makeButtonIconPrompt() {
 }
 
 function makeSeedreamPrompt() {
-  const scene = fieldValue("seedreamSceneInput") || "*что происходит в кадре*";
-  const people = fieldValue("seedreamPeopleInput");
-  const place = fieldValue("seedreamPlaceInput");
-  const mood = fieldValue("seedreamMoodInput");
-  const details = fieldValue("seedreamDetailsInput");
-  const additions = [scene, people, place, mood, details].filter(Boolean).join(", ");
+  const idea = fieldValue("seedreamDirectIdeaInput") || "*моя идея изображения*";
 
-  return `${SEEDREAM_PREFIX} ${additions}`;
+  return `${SEEDREAM_PREFIX} ${idea}`;
 }
 
 function makePrompt() {
-  if (activeTopicId === "seedream-realism") return makeSeedreamPrompt();
+  if (activeTopicId === "seedream-realism") {
+    const mode = document.querySelector('input[name="seedreamMode"]:checked')?.value || "direct";
+    if (mode === "grok") return makeGrokRequest();
+    return makeSeedreamPrompt();
+  }
+
   return makeButtonIconPrompt();
 }
 
 function makeGrokRequest() {
-  const idea = fieldValue("aiIdeaInput") || [
-    fieldValue("seedreamSceneInput"),
-    fieldValue("seedreamPeopleInput"),
-    fieldValue("seedreamPlaceInput"),
-    fieldValue("seedreamMoodInput"),
-    fieldValue("seedreamDetailsInput"),
-  ]
-    .filter(Boolean)
-    .join(", ");
+  const idea = fieldValue("seedreamGrokIdeaInput") || "*мое желание для серии изображений*";
+  const count = Math.min(Math.max(Number(fieldValue("seedreamGrokCountInput")) || 10, 1), 30);
 
   return [
-    "Помоги собрать промпт для реалистичного изображения в Seedream.",
-    "Верни только один готовый промпт, без объяснений.",
-    "Начало промпта нельзя менять, оно должно идти первым:",
+    `Сделай ${count} разных промптов для реалистичных изображений в Seedream.`,
+    "Каждый промпт должен начинаться строго с этой фразы, без изменений:",
     SEEDREAM_PREFIX,
     "",
-    "Дальше дополни сцену по идее ниже. Пиши по-английски, сохрани вайб candid iPhone / phone quality / imperfect real-life shot.",
-    `Идея: ${idea || "*моя идея сцены*"}`,
+    "После этой фразы развей мою идею в разные конкретные сцены. Пиши по-английски. Каждый вариант должен быть отдельной строкой и полностью готовым промптом для генерации.",
+    "Сохрани вайб candid iPhone / phone quality / imperfect real-life shot. Не добавляй объяснения, заголовки и нумерацию.",
+    "",
+    `Мое желание: ${idea}`,
   ].join("\n");
 }
 
@@ -461,18 +445,20 @@ function syncStateFromForm() {
 
   if (activeTopicId === "seedream-realism") {
     formState["seedream-realism"] = {
-      scene: fieldValue("seedreamSceneInput"),
-      people: fieldValue("seedreamPeopleInput"),
-      place: fieldValue("seedreamPlaceInput"),
-      mood: fieldValue("seedreamMoodInput"),
-      details: fieldValue("seedreamDetailsInput"),
-      aiIdea: fieldValue("aiIdeaInput"),
+      mode: document.querySelector('input[name="seedreamMode"]:checked')?.value || "direct",
+      directIdea: fieldValue("seedreamDirectIdeaInput"),
+      grokIdea: fieldValue("seedreamGrokIdeaInput"),
+      grokCount: fieldValue("seedreamGrokCountInput") || "10",
     };
   }
 }
 
 function updatePrompt() {
   syncStateFromForm();
+  els.resultTitle.textContent =
+    activeTopicId === "seedream-realism" && formState["seedream-realism"].mode === "grok"
+      ? "Запрос для Grok"
+      : "Готовый промпт";
   els.promptOutput.value = makePrompt();
   updateAccentColor();
 }
@@ -589,12 +575,10 @@ function resetForm() {
 
   if (activeTopicId === "seedream-realism") {
     formState["seedream-realism"] = {
-      scene: "",
-      people: "",
-      place: "",
-      mood: "",
-      details: "",
-      aiIdea: "",
+      mode: "direct",
+      directIdea: "",
+      grokIdea: "",
+      grokCount: "10",
     };
   }
 
@@ -646,6 +630,16 @@ function bindButtonIconControls() {
 }
 
 function bindSeedreamControls() {
+  els.promptForm.querySelectorAll('input[name="seedreamMode"]').forEach((input) => {
+    input.addEventListener("change", () => {
+      const mode = input.value;
+      els.promptForm.querySelectorAll("[data-mode-panel]").forEach((panel) => {
+        panel.hidden = panel.dataset.modePanel !== mode;
+      });
+      updatePrompt();
+    });
+  });
+
   document.querySelector("#aiRequestButton").addEventListener("click", () => {
     syncStateFromForm();
     copyText(makeGrokRequest(), "Запрос для Grok скопирован");
