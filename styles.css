@@ -280,6 +280,44 @@ legend {
   align-items: start;
 }
 
+.choice-field {
+  min-width: 0;
+}
+
+.choice-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.choice-option {
+  position: relative;
+  display: flex;
+  min-height: 46px;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 11px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: #ffffff;
+}
+
+.choice-option:has(input:checked) {
+  border-color: rgba(124, 58, 237, 0.72);
+  box-shadow: 0 0 0 4px rgba(124, 58, 237, 0.1);
+}
+
+.choice-option input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--accent);
+}
+
+.choice-option span {
+  font-size: 13px;
+  font-weight: 800;
+}
+
 .compact-row {
   grid-template-columns: minmax(0, 1fr) 120px;
 }
@@ -352,6 +390,13 @@ textarea:focus {
 .field-error,
 .field-error:focus {
   border-color: rgba(243, 111, 86, 0.85);
+  box-shadow: 0 0 0 4px rgba(243, 111, 86, 0.12);
+}
+
+.choice-field.field-error {
+  padding: 8px;
+  border: 1px solid rgba(243, 111, 86, 0.85);
+  border-radius: var(--radius);
   box-shadow: 0 0 0 4px rgba(243, 111, 86, 0.12);
 }
 
@@ -699,6 +744,7 @@ input[type="number"]:focus {
   .swatch-grid,
   .mode-grid,
   .ai-helper-grid,
+  .choice-grid,
   .field-row,
   .compact-row {
     grid-template-columns: 1fr;

@@ -301,18 +301,29 @@ function renderCharacterForm() {
     </section>
 
     <div class="field-row">
-      <label class="field">
-        <span class="field-label">Пол <span class="required-mark" aria-hidden="true">*</span></span>
-        <input
-          id="characterGenderInput"
-          name="gender"
-          type="text"
-          required
-          value="${escapeHTML(state.gender)}"
-          placeholder="например, мужчина / женщина"
-          autocomplete="off"
-        />
-      </label>
+      <fieldset class="field choice-field" id="characterGenderField">
+        <legend class="field-label">Пол <span class="required-mark" aria-hidden="true">*</span></legend>
+        <div class="choice-grid">
+          <label class="choice-option">
+            <input
+              type="radio"
+              name="characterGender"
+              value="adult man"
+              ${state.gender === "adult man" ? "checked" : ""}
+            />
+            <span>Мужчина</span>
+          </label>
+          <label class="choice-option">
+            <input
+              type="radio"
+              name="characterGender"
+              value="adult woman"
+              ${state.gender === "adult woman" ? "checked" : ""}
+            />
+            <span>Женщина</span>
+          </label>
+        </div>
+      </fieldset>
 
       <label class="field">
         <span class="field-label">Возраст <span class="required-mark" aria-hidden="true">*</span></span>
@@ -593,6 +604,10 @@ function briefLine(label, value) {
   return `${label}: ${value || "не указано"}`;
 }
 
+function getCharacterGenderValue() {
+  return document.querySelector('input[name="characterGender"]:checked')?.value || "";
+}
+
 function makeCharacterRequest() {
   const state = formState["character-appearance"];
   const count = Math.min(Math.max(Number(fieldValue("characterCountInput") || state.count) || 10, 1), 20);
@@ -620,7 +635,7 @@ function makeCharacterRequest() {
     "Не используй имена персонажей в финальных промптах.",
     "",
     "Мой бриф:",
-    briefLine("Пол", fieldValue("characterGenderInput") || state.gender),
+    briefLine("Пол", getCharacterGenderValue() || state.gender),
     briefLine("Возраст", fieldValue("characterAgeInput") || state.age),
     briefLine("Этничность / общий типаж", fieldValue("characterAppearanceBaseInput") || state.appearanceBase),
     briefLine("Лицо", fieldValue("characterFaceInput") || state.faceDetails),
@@ -633,11 +648,14 @@ function makeCharacterRequest() {
 
 function getMissingCharacterFields() {
   return [
-    "characterGenderInput",
+    "characterGenderField",
     "characterAgeInput",
     "characterAppearanceBaseInput",
     "characterFaceInput",
-  ].filter((id) => !fieldValue(id));
+  ].filter((id) => {
+    if (id === "characterGenderField") return !getCharacterGenderValue();
+    return !fieldValue(id);
+  });
 }
 
 function markMissingFields(fieldIds) {
@@ -649,7 +667,12 @@ function markMissingFields(fieldIds) {
     document.querySelector(`#${id}`)?.classList.add("field-error");
   });
 
-  document.querySelector(`#${fieldIds[0]}`)?.focus();
+  const firstMissing = document.querySelector(`#${fieldIds[0]}`);
+  if (fieldIds[0] === "characterGenderField") {
+    firstMissing?.querySelector("input")?.focus();
+  } else {
+    firstMissing?.focus();
+  }
 }
 
 function normalizePromptLine(line) {
@@ -856,7 +879,7 @@ function syncStateFromForm() {
   if (activeTopicId === "character-appearance") {
     const previousState = formState["character-appearance"];
     formState["character-appearance"] = {
-      gender: fieldValue("characterGenderInput"),
+      gender: getCharacterGenderValue(),
       age: fieldValue("characterAgeInput"),
       appearanceBase: fieldValue("characterAppearanceBaseInput"),
       faceDetails: fieldValue("characterFaceInput"),
@@ -1239,6 +1262,9 @@ function handleFormInput(event) {
   if (activeTopicId === "character-appearance") {
     if (event.target.matches(".field-error") && event.target.value.trim()) {
       event.target.classList.remove("field-error");
+    }
+    if (event.target.matches('input[name="characterGender"]')) {
+      document.querySelector("#characterGenderField")?.classList.remove("field-error");
     }
     clearCharacterResults();
   }
