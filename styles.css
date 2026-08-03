@@ -427,7 +427,7 @@ textarea:focus {
   align-items: center;
   padding: 12px;
   border: 1px solid var(--line);
-  border-radius: var(--pill-radius);
+  border-radius: var(--radius);
   background: #ffffff;
 }
 
