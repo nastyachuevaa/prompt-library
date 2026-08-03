@@ -71,7 +71,7 @@ const formState = {
     details: "",
   },
   "seedream-realism": {
-    mode: "direct",
+    mode: "grok",
     directIdea: "",
     grokIdea: "",
     grokCount: "10",
@@ -506,7 +506,7 @@ function makeSeedreamPrompt() {
 }
 
 function getSeedreamMode() {
-  return document.querySelector('input[name="seedreamMode"]:checked')?.value || "direct";
+  return document.querySelector('input[name="seedreamMode"]:checked')?.value || "grok";
 }
 
 function isSeedreamGrokMode() {
@@ -1057,7 +1057,7 @@ function resetForm() {
 
   if (activeTopicId === "seedream-realism") {
     formState["seedream-realism"] = {
-      mode: "direct",
+      mode: "grok",
       directIdea: "",
       grokIdea: "",
       grokCount: "10",
