@@ -40,6 +40,11 @@ button {
   cursor: pointer;
 }
 
+button:disabled {
+  cursor: wait;
+  opacity: 0.72;
+}
+
 .app-shell {
   display: grid;
   grid-template-columns: minmax(230px, 280px) minmax(320px, 1fr) minmax(320px, 430px);
@@ -398,6 +403,12 @@ textarea:focus {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+}
+
+.ai-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
 }
 
 .small-field {

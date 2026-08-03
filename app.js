@@ -241,7 +241,6 @@ function renderSeedreamForm() {
     <section class="ai-helper mode-panel" data-mode-panel="grok" aria-labelledby="aiHelperTitle" ${state.mode === "grok" ? "" : "hidden"}>
       <div class="ai-helper-heading">
         <h3 id="aiHelperTitle">Grok</h3>
-        <button class="ghost-button compact" type="button" id="aiRequestButton">Запрос для Grok</button>
       </div>
       <label class="field">
         <span>Мое желание</span>
@@ -263,6 +262,10 @@ function renderSeedreamForm() {
           value="${escapeHTML(state.grokCount)}"
         />
       </label>
+      <div class="ai-actions">
+        <button class="primary-button" type="button" id="grokGenerateButton">Сгенерировать через Grok</button>
+        <button class="ghost-button" type="button" id="aiRequestButton">Скопировать запрос</button>
+      </div>
     </section>
   `;
 
@@ -426,6 +429,17 @@ function makeGrokRequest() {
   ].join("\n");
 }
 
+function getGenerateEndpoint() {
+  const savedEndpoint = localStorage.getItem("prompt-library.generateEndpoint") || "";
+  if (savedEndpoint) return savedEndpoint;
+
+  if (location.hostname === "localhost" || location.hostname === "127.0.0.1" || location.hostname.endsWith(".vercel.app")) {
+    return "/api/generate";
+  }
+
+  return "";
+}
+
 function updateAccentColor() {
   const palette = getSelectedPalette();
   document.documentElement.style.setProperty("--accent", palette.gradient.match(/#([0-9a-f]{6})/i)?.[0] || "#7c3aed");
@@ -509,6 +523,53 @@ async function copyReference(src) {
     setStatus("Реф скопирован в буфер");
   } catch {
     setStatus("Не удалось скопировать реф");
+  }
+}
+
+async function generateWithGrok() {
+  syncStateFromForm();
+
+  const endpoint = getGenerateEndpoint();
+  if (!endpoint) {
+    setStatus("Backend еще не подключен");
+    return;
+  }
+
+  const button = document.querySelector("#grokGenerateButton");
+  const previousText = button?.textContent;
+
+  try {
+    if (button) {
+      button.disabled = true;
+      button.textContent = "Генерирую...";
+    }
+    setStatus("Генерирую...");
+
+    const response = await fetch(endpoint, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        request: makeGrokRequest(),
+      }),
+    });
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data?.error || "Generation failed");
+    }
+
+    els.resultTitle.textContent = "Ответ Grok";
+    els.promptOutput.value = data.text;
+    setStatus("Готово");
+  } catch {
+    setStatus("Не удалось сгенерировать");
+  } finally {
+    if (button) {
+      button.disabled = false;
+      button.textContent = previousText;
+    }
   }
 }
 
@@ -640,6 +701,7 @@ function bindSeedreamControls() {
     });
   });
 
+  document.querySelector("#grokGenerateButton").addEventListener("click", generateWithGrok);
   document.querySelector("#aiRequestButton").addEventListener("click", () => {
     syncStateFromForm();
     copyText(makeGrokRequest(), "Запрос для Grok скопирован");
