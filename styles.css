@@ -256,6 +256,34 @@ legend {
   gap: 12px;
 }
 
+.field-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  align-items: start;
+}
+
+.compact-row {
+  grid-template-columns: minmax(0, 1fr) 120px;
+}
+
+.fixed-brief {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.fixed-brief span {
+  min-height: 32px;
+  padding: 7px 10px;
+  border: 1px solid rgba(124, 58, 237, 0.18);
+  border-radius: var(--radius);
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 800;
+  background: rgba(124, 58, 237, 0.07);
+}
+
 input[type="text"],
 textarea {
   width: 100%;
@@ -412,6 +440,12 @@ textarea:focus {
   border-radius: var(--radius);
   background:
     linear-gradient(135deg, rgba(124, 58, 237, 0.07), transparent 44%),
+    #ffffff;
+}
+
+.character-helper {
+  background:
+    linear-gradient(135deg, rgba(63, 184, 159, 0.1), transparent 48%),
     #ffffff;
 }
 
@@ -621,7 +655,9 @@ input[type="number"]:focus {
   .topic-list,
   .swatch-grid,
   .mode-grid,
-  .ai-helper-grid {
+  .ai-helper-grid,
+  .field-row,
+  .compact-row {
     grid-template-columns: 1fr;
   }
 

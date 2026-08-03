@@ -1,6 +1,9 @@
 const SEEDREAM_PREFIX =
   "dynamic angled iphone shot, warm storytelling composition, dynamic tilted iphone shot, slight motion blur for realism, candid cinematic everyday moment, shot on iphone, phone quality, phone grain, iphone colors, dynamic angle, storytelling composition, dramatic composition, flirty vibe, low contrast, no studio lighting, slight hand shake, imperfect crop, iPhone front-camera,";
 
+const CHARACTER_PREFIX = "A realistic front-facing iPhone photo of";
+const CHARACTER_SUFFIX = "Plain gray studio wall background, natural indoor phone lighting, raw realistic iPhone photo";
+
 const topics = [
   {
     id: "button-icon",
@@ -17,11 +20,11 @@ const topics = [
     enabled: true,
   },
   {
-    id: "copy",
-    title: "Тексты",
-    category: "Формулировки",
-    meta: "Тон, структура, длина, аудитория",
-    enabled: false,
+    id: "character-appearance",
+    title: "Nano Banana внешность",
+    category: "Изображения",
+    meta: "Люди, типаж, лицо, тело, одежда",
+    enabled: true,
   },
 ];
 
@@ -60,6 +63,7 @@ const referencesByTopic = {
     },
   ],
   "seedream-realism": [],
+  "character-appearance": [],
 };
 
 const formState = {
@@ -76,6 +80,19 @@ const formState = {
     grokCount: "10",
     grokResults: [],
     grokRawText: "",
+  },
+  "character-appearance": {
+    name: "",
+    ageGender: "",
+    appearanceBase: "",
+    faceDetails: "",
+    bodyDetails: "",
+    clothing: "",
+    references: "",
+    extra: "",
+    count: "10",
+    results: [],
+    rawText: "",
   },
 };
 
@@ -271,6 +288,131 @@ function renderSeedreamForm() {
   bindSeedreamControls();
 }
 
+function renderCharacterForm() {
+  const state = formState["character-appearance"];
+
+  els.promptForm.innerHTML = `
+    <section class="fixed-brief" aria-label="Фиксированные требования">
+      <span>iPhone фото</span>
+      <span>front-facing</span>
+      <span>серый студийный фон</span>
+      <span>raw realistic</span>
+    </section>
+
+    <div class="field-row">
+      <label class="field">
+        <span>Имя / роль</span>
+        <input
+          id="characterNameInput"
+          name="name"
+          type="text"
+          value="${escapeHTML(state.name)}"
+          placeholder="например, Amen, бариста, студентка"
+          autocomplete="off"
+        />
+      </label>
+
+      <label class="field">
+        <span>Пол и возраст</span>
+        <input
+          id="characterAgeGenderInput"
+          name="ageGender"
+          type="text"
+          value="${escapeHTML(state.ageGender)}"
+          placeholder="например, мужчина 28-30"
+          autocomplete="off"
+        />
+      </label>
+    </div>
+
+    <label class="field">
+      <span>Этничность / общий типаж</span>
+      <textarea
+        id="characterAppearanceBaseInput"
+        name="appearanceBase"
+        rows="4"
+        placeholder="например, очень светлая кожа, североевропейский типаж, холодная внешность"
+      >${escapeHTML(state.appearanceBase)}</textarea>
+    </label>
+
+    <label class="field">
+      <span>Лицо</span>
+      <textarea
+        id="characterFaceInput"
+        name="faceDetails"
+        rows="6"
+        placeholder="волосы, глаза, брови, скулы, нос, губы, взгляд, выражение лица"
+      >${escapeHTML(state.faceDetails)}</textarea>
+    </label>
+
+    <label class="field">
+      <span>Тело</span>
+      <textarea
+        id="characterBodyInput"
+        name="bodyDetails"
+        rows="4"
+        placeholder="рост, плечи, телосложение, шея, талия, мышцы, осанка"
+      >${escapeHTML(state.bodyDetails)}</textarea>
+    </label>
+
+    <label class="field">
+      <span>Одежда</span>
+      <textarea
+        id="characterClothingInput"
+        name="clothing"
+        rows="3"
+        placeholder="если важно: черная футболка, пиджак, платье, минималистичный образ"
+      >${escapeHTML(state.clothing)}</textarea>
+    </label>
+
+    <label class="field">
+      <span>Ориентиры актеров / актрис</span>
+      <textarea
+        id="characterReferencesInput"
+        name="references"
+        rows="3"
+        placeholder="например, похожий вайб или отдельные черты, но не копия"
+      >${escapeHTML(state.references)}</textarea>
+    </label>
+
+    <div class="field-row compact-row">
+      <label class="field">
+        <span>Дополнительно</span>
+        <textarea
+          id="characterExtraInput"
+          name="extra"
+          rows="4"
+          placeholder="настроение, запреты, важные детали, что точно не менять"
+        >${escapeHTML(state.extra)}</textarea>
+      </label>
+
+      <label class="field small-field">
+        <span>Сколько</span>
+        <input
+          id="characterCountInput"
+          name="count"
+          type="number"
+          min="1"
+          max="20"
+          value="${escapeHTML(state.count)}"
+        />
+      </label>
+    </div>
+
+    <section class="ai-helper character-helper" aria-labelledby="characterHelperTitle">
+      <div class="ai-helper-heading">
+        <h3 id="characterHelperTitle">Grok соберет варианты</h3>
+      </div>
+      <div class="ai-actions">
+        <button class="primary-button" type="button" id="characterGenerateButton">Сгенерировать внешности</button>
+        <button class="ghost-button" type="button" id="characterRequestButton">Скопировать запрос</button>
+      </div>
+    </section>
+  `;
+
+  bindCharacterControls();
+}
+
 function renderPalettes() {
   const state = formState["button-icon"];
   const paletteOptions = document.querySelector("#paletteOptions");
@@ -436,6 +578,47 @@ function makeGrokRequest() {
   ].join("\n");
 }
 
+function briefLine(label, value) {
+  return `${label}: ${value || "не указано"}`;
+}
+
+function makeCharacterRequest() {
+  const state = formState["character-appearance"];
+  const count = Math.min(Math.max(Number(fieldValue("characterCountInput") || state.count) || 10, 1), 20);
+  const countPhrase = count === 1 ? "1 готовый промпт" : `${count} разных готовых промптов`;
+
+  return [
+    `Сделай ${countPhrase} для Nano Banana: разные варианты внешности одного персонажа по моему брифу.`,
+    "Пиши готовые промпты по-английски. Каждый вариант должен быть отдельной строкой.",
+    "",
+    "Обязательная структура каждого промпта:",
+    `${CHARACTER_PREFIX} {name or person}, {gender and age}, {ethnicity/general appearance}, {skin}, {hair}, {eyes}, {brows}, {cheekbones}, {nose}, {jawline}, {lips}, {gaze/expression}. {body}. {clothing}. ${CHARACTER_SUFFIX}`,
+    "",
+    "Общие требования ко всем вариантам:",
+    "- realistic front-facing iPhone photo",
+    "- plain gray studio wall background",
+    "- natural indoor phone lighting",
+    "- raw realistic iPhone photo",
+    "- detailed face and body description, close to the structure of the example",
+    "- no studio glamour, no fantasy, no cartoon, no plastic skin",
+    "- if age is not specified, make the person an adult around 25-35",
+    "",
+    "Если я указала актеров или актрис как ориентиры: не копируй их, не делай lookalike, не упоминай имена в финальных промптах. Используй только общие черты типажа, пропорций, вайба и выражения лица, создавая новых оригинальных людей.",
+    "Варианты должны отличаться друг от друга: форма лица, волосы, глаза, детали тела, одежда или выражение, но сохранять мои ключевые вводные.",
+    "Верни только сами промпты: без объяснений, заголовков, нумерации и кавычек.",
+    "",
+    "Мой бриф:",
+    briefLine("Имя / роль", fieldValue("characterNameInput") || state.name),
+    briefLine("Пол и возраст", fieldValue("characterAgeGenderInput") || state.ageGender),
+    briefLine("Этничность / общий типаж", fieldValue("characterAppearanceBaseInput") || state.appearanceBase),
+    briefLine("Лицо", fieldValue("characterFaceInput") || state.faceDetails),
+    briefLine("Тело", fieldValue("characterBodyInput") || state.bodyDetails),
+    briefLine("Одежда", fieldValue("characterClothingInput") || state.clothing),
+    briefLine("Ориентиры актеров / актрис", fieldValue("characterReferencesInput") || state.references),
+    briefLine("Дополнительно", fieldValue("characterExtraInput") || state.extra),
+  ].join("\n");
+}
+
 function normalizePromptLine(line) {
   return line
     .replace(/^\s*(?:\d+[\).:\-]\s*|[-*•]\s*)/, "")
@@ -452,6 +635,22 @@ function ensureSeedreamPrefix(prompt) {
   }
 
   return `${SEEDREAM_PREFIX} ${trimmed}`;
+}
+
+function ensureCharacterFrame(prompt) {
+  let trimmed = normalizePromptLine(prompt);
+  if (!trimmed) return "";
+
+  if (!trimmed.toLowerCase().startsWith(CHARACTER_PREFIX.toLowerCase())) {
+    trimmed = `${CHARACTER_PREFIX} ${trimmed}`;
+  }
+
+  const lowerPrompt = trimmed.toLowerCase();
+  if (!/(gray|grey)/.test(lowerPrompt) || !lowerPrompt.includes("iphone")) {
+    trimmed = `${trimmed.replace(/[. ]*$/, "")}. ${CHARACTER_SUFFIX}`;
+  }
+
+  return trimmed;
 }
 
 function parseJSONPromptList(text) {
@@ -513,13 +712,72 @@ function parseGrokPrompts(text) {
   return prompts.map(ensureSeedreamPrefix).filter(Boolean);
 }
 
+function parseCharacterPrompts(text) {
+  const jsonPrompts = parseJSONPromptList(text);
+  if (jsonPrompts.length) return jsonPrompts.map(ensureCharacterFrame).filter(Boolean);
+
+  const lines = String(text)
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  if (!lines.length) return [];
+
+  const prompts = [];
+  let current = "";
+  const prefixStart = CHARACTER_PREFIX.toLowerCase();
+  const hasStructuredLines = lines.some((line) => {
+    const cleaned = normalizePromptLine(line);
+    return cleaned.toLowerCase().startsWith(prefixStart) || /^\s*(?:\d+[\).:\-]|[-*•])\s*/.test(line);
+  });
+
+  if (!hasStructuredLines) {
+    return lines.filter((line) => !isIntroLine(line)).map(ensureCharacterFrame).filter(Boolean);
+  }
+
+  lines.forEach((line) => {
+    const cleaned = normalizePromptLine(line);
+    if (!cleaned || (!current && isIntroLine(cleaned))) return;
+
+    const startsLikePrompt = cleaned.toLowerCase().startsWith(prefixStart);
+    const startsLikeListItem = /^\s*(?:\d+[\).:\-]|[-*•])\s*/.test(line);
+
+    if ((startsLikePrompt || startsLikeListItem) && current) {
+      prompts.push(current);
+      current = cleaned;
+      return;
+    }
+
+    current = current ? `${current} ${cleaned}` : cleaned;
+  });
+
+  if (current) prompts.push(current);
+
+  return prompts.map(ensureCharacterFrame).filter(Boolean);
+}
+
 function getGrokResults() {
   return formState["seedream-realism"].grokResults || [];
+}
+
+function getCharacterResults() {
+  return formState["character-appearance"].results || [];
+}
+
+function getCardResults() {
+  if (isSeedreamGrokMode()) return getGrokResults();
+  if (activeTopicId === "character-appearance") return getCharacterResults();
+  return [];
 }
 
 function clearGrokResults() {
   formState["seedream-realism"].grokResults = [];
   formState["seedream-realism"].grokRawText = "";
+}
+
+function clearCharacterResults() {
+  formState["character-appearance"].results = [];
+  formState["character-appearance"].rawText = "";
 }
 
 function getGenerateEndpoint() {
@@ -559,6 +817,23 @@ function syncStateFromForm() {
       grokCount: fieldValue("seedreamGrokCountInput") || "10",
       grokResults: previousState.grokResults || [],
       grokRawText: previousState.grokRawText || "",
+    };
+  }
+
+  if (activeTopicId === "character-appearance") {
+    const previousState = formState["character-appearance"];
+    formState["character-appearance"] = {
+      name: fieldValue("characterNameInput"),
+      ageGender: fieldValue("characterAgeGenderInput"),
+      appearanceBase: fieldValue("characterAppearanceBaseInput"),
+      faceDetails: fieldValue("characterFaceInput"),
+      bodyDetails: fieldValue("characterBodyInput"),
+      clothing: fieldValue("characterClothingInput"),
+      references: fieldValue("characterReferencesInput"),
+      extra: fieldValue("characterExtraInput"),
+      count: fieldValue("characterCountInput") || "10",
+      results: previousState.results || [],
+      rawText: previousState.rawText || "",
     };
   }
 }
@@ -607,11 +882,25 @@ function renderGrokOutput() {
   renderPromptCards(prompts);
 }
 
+function renderCharacterOutput() {
+  const prompts = getCharacterResults();
+
+  els.resultTitle.textContent = prompts.length ? "Варианты внешности" : "Nano Banana внешность";
+  els.promptOutput.hidden = true;
+  els.promptCards.hidden = false;
+  els.copyButton.hidden = prompts.length === 0;
+  els.copyButton.textContent = "Копировать все";
+  els.promptOutput.value = prompts.length ? prompts.join("\n\n") : makeCharacterRequest();
+  renderPromptCards(prompts);
+}
+
 function updatePrompt() {
   syncStateFromForm();
 
   if (isSeedreamGrokMode()) {
     renderGrokOutput();
+  } else if (activeTopicId === "character-appearance") {
+    renderCharacterOutput();
   } else {
     renderStandardOutput("Готовый промпт", makePrompt());
   }
@@ -719,6 +1008,57 @@ async function generateWithGrok() {
   }
 }
 
+async function generateCharacterVariants() {
+  syncStateFromForm();
+
+  const endpoint = getGenerateEndpoint();
+  if (!endpoint) {
+    setStatus("Backend еще не подключен");
+    return;
+  }
+
+  const button = document.querySelector("#characterGenerateButton");
+  const previousText = button?.textContent;
+
+  try {
+    if (button) {
+      button.disabled = true;
+      button.textContent = "Генерирую...";
+    }
+    clearCharacterResults();
+    renderCharacterOutput();
+    setStatus("Генерирую...");
+
+    const response = await fetch(endpoint, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        request: makeCharacterRequest(),
+      }),
+    });
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data?.error || "Generation failed");
+    }
+
+    const prompts = parseCharacterPrompts(data.text);
+    formState["character-appearance"].rawText = data.text;
+    formState["character-appearance"].results = prompts.length ? prompts : [data.text.trim()].filter(Boolean);
+    renderCharacterOutput();
+    setStatus(`Готово: ${formState["character-appearance"].results.length}`);
+  } catch {
+    setStatus("Не удалось сгенерировать");
+  } finally {
+    if (button) {
+      button.disabled = false;
+      button.textContent = previousText;
+    }
+  }
+}
+
 function setStatus(message) {
   els.statusText.textContent = message;
   window.clearTimeout(setStatus.timer);
@@ -728,8 +1068,9 @@ function setStatus(message) {
 }
 
 function getCurrentOutputText() {
-  if (isSeedreamGrokMode() && getGrokResults().length) {
-    return getGrokResults().join("\n\n");
+  const cardResults = getCardResults();
+  if (cardResults.length) {
+    return cardResults.join("\n\n");
   }
 
   return els.promptOutput.value;
@@ -756,6 +1097,22 @@ function resetForm() {
     };
   }
 
+  if (activeTopicId === "character-appearance") {
+    formState["character-appearance"] = {
+      name: "",
+      ageGender: "",
+      appearanceBase: "",
+      faceDetails: "",
+      bodyDetails: "",
+      clothing: "",
+      references: "",
+      extra: "",
+      count: "10",
+      results: [],
+      rawText: "",
+    };
+  }
+
   renderActiveTopic();
 }
 
@@ -776,6 +1133,8 @@ function renderActiveTopic() {
   renderTopics();
   if (activeTopicId === "seedream-realism") {
     renderSeedreamForm();
+  } else if (activeTopicId === "character-appearance") {
+    renderCharacterForm();
   } else {
     renderButtonIconForm();
   }
@@ -820,12 +1179,24 @@ function bindSeedreamControls() {
   });
 }
 
+function bindCharacterControls() {
+  document.querySelector("#characterGenerateButton").addEventListener("click", generateCharacterVariants);
+  document.querySelector("#characterRequestButton").addEventListener("click", () => {
+    syncStateFromForm();
+    copyText(makeCharacterRequest(), "Запрос для Grok скопирован");
+  });
+}
+
 function handleFormInput(event) {
   if (
     activeTopicId === "seedream-realism" &&
     event.target.matches("#seedreamGrokIdeaInput, #seedreamGrokCountInput")
   ) {
     clearGrokResults();
+  }
+
+  if (activeTopicId === "character-appearance") {
+    clearCharacterResults();
   }
 
   updatePrompt();
@@ -838,7 +1209,7 @@ function bindEvents() {
   });
 
   els.promptForm.addEventListener("input", handleFormInput);
-  els.promptForm.addEventListener("change", updatePrompt);
+  els.promptForm.addEventListener("change", handleFormInput);
   els.copyButton.addEventListener("click", () => copyText(getCurrentOutputText()));
   els.resetButton.addEventListener("click", resetForm);
   els.refsGrid.addEventListener("click", (event) => {
@@ -859,7 +1230,7 @@ function bindEvents() {
   els.promptCards.addEventListener("click", (event) => {
     const copyButton = event.target.closest("[data-copy-result]");
     const index = Number(copyButton?.dataset.copyResult);
-    const prompt = getGrokResults()[index];
+    const prompt = getCardResults()[index];
     if (!prompt) return;
 
     if (copyButton) {
