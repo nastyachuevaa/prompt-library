@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Библиотека промптов</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="app-shell" aria-label="Библиотека промптов">
+      <aside class="topics-panel" aria-label="Темы промптов">
+        <div class="brand">
+          <span class="brand-mark" aria-hidden="true">P</span>
+          <div>
+            <p class="eyebrow">Моя библиотека</p>
+            <h1>Промпты</h1>
+          </div>
+        </div>
+
+        <nav class="topic-list" id="topicList" aria-label="Список тем"></nav>
+      </aside>
+
+      <section class="builder-panel" aria-labelledby="builderTitle">
+        <div class="builder-heading">
+          <div>
+            <p class="eyebrow" id="builderCategory">Изображения</p>
+            <h2 id="builderTitle">3D иконка для кнопки</h2>
+          </div>
+          <button class="ghost-button" type="button" id="resetButton">Сбросить</button>
+        </div>
+
+        <form class="prompt-form" id="promptForm">
+          <label class="field">
+            <span>Предмет на кнопке</span>
+            <input
+              id="subjectInput"
+              name="subject"
+              type="text"
+              placeholder="например, календарь, ключ, корзина"
+              autocomplete="off"
+            />
+          </label>
+
+          <fieldset class="field color-field">
+            <legend>Цвет</legend>
+            <div class="swatch-grid" id="paletteOptions"></div>
+            <div class="custom-color-option" id="customColorOption">
+              <input
+                class="custom-color-radio"
+                id="customColorRadio"
+                type="radio"
+                name="palette"
+                value="custom"
+              />
+              <label class="custom-color-body" for="customColorInput">
+                <span>Свой цвет</span>
+                <input
+                  id="customColorInput"
+                  name="customColor"
+                  type="text"
+                  placeholder="например, серебряный / лавандовый"
+                  autocomplete="off"
+                />
+              </label>
+            </div>
+          </fieldset>
+
+          <label class="field">
+            <span>Дополнительные детали</span>
+            <textarea
+              id="detailsInput"
+              name="details"
+              rows="4"
+              placeholder="например, без фона, мягкий контур"
+            ></textarea>
+          </label>
+        </form>
+      </section>
+
+      <section class="result-panel" aria-labelledby="resultTitle">
+        <section class="refs-section" aria-labelledby="refsTitle">
+          <div class="refs-header">
+            <h2 id="refsTitle">Рефы</h2>
+          </div>
+          <div class="refs-grid" id="refsGrid"></div>
+        </section>
+
+        <div class="result-block">
+          <div class="result-header">
+            <h2 id="resultTitle">Готовый промпт</h2>
+            <button class="ghost-button" type="button" id="copyButton">
+              Копировать
+            </button>
+          </div>
+          <textarea id="promptOutput" readonly aria-label="Готовый промпт"></textarea>
+          <div class="result-actions">
+            <button class="primary-button" type="button" id="saveButton">Сохранить</button>
+            <p class="status-text" id="statusText" aria-live="polite"></p>
+          </div>
+        </div>
+
+        <section class="saved-section" aria-labelledby="savedTitle">
+          <div class="saved-header">
+            <h2 id="savedTitle">Сохраненные</h2>
+            <button class="ghost-button compact" type="button" id="clearSavedButton">Очистить</button>
+          </div>
+          <div class="saved-list" id="savedList"></div>
+        </section>
+      </section>
+    </main>
+
+    <script src="app.js" defer></script>
+  </body>
+</html>
