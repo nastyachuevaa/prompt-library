@@ -280,6 +280,7 @@ legend {
 
 .character-basics-row {
   align-items: start;
+  grid-template-columns: minmax(260px, 1.05fr) minmax(150px, 0.95fr);
 }
 
 .choice-grid {
@@ -723,10 +724,14 @@ input[type="number"]:focus {
   .swatch-grid,
   .mode-grid,
   .ai-helper-grid,
-  .choice-grid,
   .field-row,
   .compact-row {
     grid-template-columns: 1fr;
+  }
+
+  .choice-grid,
+  .character-basics-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .small-field {
@@ -745,6 +750,10 @@ input[type="number"]:focus {
   .result-actions {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .character-basics-row {
+    grid-template-columns: 1fr;
   }
 
   h1 {
