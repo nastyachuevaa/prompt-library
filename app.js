@@ -566,7 +566,7 @@ function makeCharacterRequest() {
         : "an attractive adult person";
 
   return [
-    `Сделай ${countPhrase} для Nano Banana: разные варианты внешности одного персонажа по моему брифу.`,
+    `Сделай ${countPhrase} для Nano Banana: разные варианты внешности одного персонажа по моему примерному запросу.`,
     "Пиши готовые промпты по-английски. Каждый вариант должен быть отдельной строкой.",
     `Обязательное условие для каждого варианта: используй ровно эту базу персонажа — ${attractiveSubject}. Не смешивай два пола в одном финальном промпте.`,
     "",
@@ -590,7 +590,7 @@ function makeCharacterRequest() {
     "Верни только сами промпты: без объяснений, заголовков, нумерации и кавычек.",
     "Не используй имена персонажей в финальных промптах.",
     "",
-    "Мой бриф:",
+    "Примерный запрос:",
     briefLine("Пол", getCharacterGenderValue() || state.gender),
     briefLine("Возраст", fieldValue("characterAgeInput") || state.age),
     briefLine("Описание", fieldValue("characterAppearanceBaseInput") || state.appearanceBase),
