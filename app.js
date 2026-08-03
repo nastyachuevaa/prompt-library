@@ -205,18 +205,6 @@ function renderSeedreamForm() {
     <fieldset class="field seedream-mode-field">
       <legend>Опция</legend>
       <div class="mode-grid seedream-mode-grid">
-        <label class="mode-option direct-mode">
-          <input
-            type="radio"
-            name="seedreamMode"
-            value="direct"
-            ${state.mode === "direct" ? "checked" : ""}
-          />
-          <span class="mode-copy">
-            <span class="mode-title">Добавить мою идею</span>
-            <span class="mode-meta">Один готовый промпт</span>
-          </span>
-        </label>
         <label class="mode-option ai-mode">
           <input
             type="radio"
@@ -227,6 +215,18 @@ function renderSeedreamForm() {
           <span class="mode-copy">
             <span class="mode-title">Развить через Grok</span>
             <span class="mode-meta">Подборка отдельных вариантов</span>
+          </span>
+        </label>
+        <label class="mode-option direct-mode">
+          <input
+            type="radio"
+            name="seedreamMode"
+            value="direct"
+            ${state.mode === "direct" ? "checked" : ""}
+          />
+          <span class="mode-copy">
+            <span class="mode-title">Добавить мою идею</span>
+            <span class="mode-meta">Один готовый промпт</span>
           </span>
         </label>
       </div>
