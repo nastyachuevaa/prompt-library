@@ -297,6 +297,7 @@ function renderCharacterForm() {
       <span>front-facing</span>
       <span>серый студийный фон</span>
       <span>raw realistic</span>
+      <span class="required-legend">* обязательное</span>
     </section>
 
     <div class="field-row">
@@ -313,11 +314,12 @@ function renderCharacterForm() {
       </label>
 
       <label class="field">
-        <span>Пол и возраст</span>
+        <span class="field-label">Пол и возраст <span class="required-mark" aria-hidden="true">*</span></span>
         <input
           id="characterAgeGenderInput"
           name="ageGender"
           type="text"
+          required
           value="${escapeHTML(state.ageGender)}"
           placeholder="например, мужчина 28-30"
           autocomplete="off"
@@ -326,21 +328,25 @@ function renderCharacterForm() {
     </div>
 
     <label class="field">
-      <span>Этничность / общий типаж</span>
+      <span class="field-label">Этничность / общий типаж <span class="required-mark" aria-hidden="true">*</span></span>
       <textarea
+        class="compact-textarea"
         id="characterAppearanceBaseInput"
         name="appearanceBase"
-        rows="4"
+        rows="2"
+        required
         placeholder="например, очень светлая кожа, североевропейский типаж, холодная внешность"
       >${escapeHTML(state.appearanceBase)}</textarea>
     </label>
 
     <label class="field">
-      <span>Лицо</span>
+      <span class="field-label">Лицо <span class="required-mark" aria-hidden="true">*</span></span>
       <textarea
+        class="compact-textarea character-face"
         id="characterFaceInput"
         name="faceDetails"
-        rows="6"
+        rows="3"
+        required
         placeholder="волосы, глаза, брови, скулы, нос, губы, взгляд, выражение лица"
       >${escapeHTML(state.faceDetails)}</textarea>
     </label>
@@ -348,9 +354,10 @@ function renderCharacterForm() {
     <label class="field">
       <span>Тело</span>
       <textarea
+        class="compact-textarea"
         id="characterBodyInput"
         name="bodyDetails"
-        rows="4"
+        rows="2"
         placeholder="рост, плечи, телосложение, шея, талия, мышцы, осанка"
       >${escapeHTML(state.bodyDetails)}</textarea>
     </label>
@@ -358,9 +365,10 @@ function renderCharacterForm() {
     <label class="field">
       <span>Одежда</span>
       <textarea
+        class="compact-textarea"
         id="characterClothingInput"
         name="clothing"
-        rows="3"
+        rows="2"
         placeholder="если важно: черная футболка, пиджак, платье, минималистичный образ"
       >${escapeHTML(state.clothing)}</textarea>
     </label>
@@ -368,9 +376,10 @@ function renderCharacterForm() {
     <label class="field">
       <span>Ориентиры актеров / актрис</span>
       <textarea
+        class="compact-textarea"
         id="characterReferencesInput"
         name="references"
-        rows="3"
+        rows="2"
         placeholder="например, похожий вайб или отдельные черты, но не копия"
       >${escapeHTML(state.references)}</textarea>
     </label>
@@ -379,9 +388,10 @@ function renderCharacterForm() {
       <label class="field">
         <span>Дополнительно</span>
         <textarea
+          class="compact-textarea"
           id="characterExtraInput"
           name="extra"
-          rows="4"
+          rows="2"
           placeholder="настроение, запреты, важные детали, что точно не менять"
         >${escapeHTML(state.extra)}</textarea>
       </label>
@@ -617,6 +627,26 @@ function makeCharacterRequest() {
     briefLine("Ориентиры актеров / актрис", fieldValue("characterReferencesInput") || state.references),
     briefLine("Дополнительно", fieldValue("characterExtraInput") || state.extra),
   ].join("\n");
+}
+
+function getMissingCharacterFields() {
+  return [
+    "characterAgeGenderInput",
+    "characterAppearanceBaseInput",
+    "characterFaceInput",
+  ].filter((id) => !fieldValue(id));
+}
+
+function markMissingFields(fieldIds) {
+  document.querySelectorAll(".field-error").forEach((field) => {
+    field.classList.remove("field-error");
+  });
+
+  fieldIds.forEach((id) => {
+    document.querySelector(`#${id}`)?.classList.add("field-error");
+  });
+
+  document.querySelector(`#${fieldIds[0]}`)?.focus();
 }
 
 function normalizePromptLine(line) {
@@ -1011,6 +1041,13 @@ async function generateWithGrok() {
 async function generateCharacterVariants() {
   syncStateFromForm();
 
+  const missingFields = getMissingCharacterFields();
+  if (missingFields.length) {
+    markMissingFields(missingFields);
+    setStatus("Заполни поля со звездочкой");
+    return;
+  }
+
   const endpoint = getGenerateEndpoint();
   if (!endpoint) {
     setStatus("Backend еще не подключен");
@@ -1129,6 +1166,7 @@ function renderActiveTopic() {
   const topic = getTopic();
   els.builderCategory.textContent = topic.category;
   els.builderTitle.textContent = topic.title;
+  els.promptForm.classList.toggle("character-form", activeTopicId === "character-appearance");
 
   renderTopics();
   if (activeTopicId === "seedream-realism") {
@@ -1196,6 +1234,9 @@ function handleFormInput(event) {
   }
 
   if (activeTopicId === "character-appearance") {
+    if (event.target.matches(".field-error") && event.target.value.trim()) {
+      event.target.classList.remove("field-error");
+    }
     clearCharacterResults();
   }
 
