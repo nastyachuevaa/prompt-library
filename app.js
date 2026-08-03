@@ -289,6 +289,7 @@ function renderCharacterForm() {
       <span>front-facing</span>
       <span>серый студийный фон</span>
       <span>raw realistic</span>
+      <span>attractive</span>
     </section>
 
     <div class="field-row character-basics-row">
@@ -556,22 +557,31 @@ function makeCharacterRequest() {
   const state = formState["character-appearance"];
   const count = Math.min(Math.max(Number(fieldValue("characterCountInput") || state.count) || 10, 1), 20);
   const countPhrase = count === 1 ? "1 готовый промпт" : `${count} разных готовых промптов`;
+  const gender = getCharacterGenderValue() || state.gender;
+  const attractiveSubject =
+    gender === "adult woman"
+      ? "an attractive adult woman"
+      : gender === "adult man"
+        ? "an attractive adult man"
+        : "an attractive adult person";
 
   return [
     `Сделай ${countPhrase} для Nano Banana: разные варианты внешности одного персонажа по моему брифу.`,
     "Пиши готовые промпты по-английски. Каждый вариант должен быть отдельной строкой.",
+    `Обязательное условие для каждого варианта: используй ровно эту базу персонажа — ${attractiveSubject}. Не смешивай два пола в одном финальном промпте.`,
     "",
     "Обязательная структура каждого промпта:",
-    `${CHARACTER_PREFIX} {gender and age if provided, otherwise plausible adult person}, {race/ethnicity and overall type}, {skin}, {hair}, {eyes}, {brows}, {cheekbones}, {nose}, {jawline}, {lips}, {gaze/expression}. {body and silhouette if specified}. {clothing if specified}. ${CHARACTER_SUFFIX}`,
+    `${CHARACTER_PREFIX} ${attractiveSubject} {age if provided, otherwise plausible adult age}, {race/ethnicity and overall type}, {skin}, {hair}, {eyes}, {brows}, {cheekbones}, {nose}, {jawline}, {lips}, {gaze/expression}. {body and silhouette if specified}. {clothing if specified}. ${CHARACTER_SUFFIX}`,
     "",
     "Общие требования ко всем вариантам:",
     "- realistic front-facing iPhone photo",
     "- plain gray studio wall background",
     "- natural indoor phone lighting",
     "- raw realistic iPhone photo",
+    `- every final prompt must describe ${attractiveSubject}`,
     "- detailed face and body description, close to the structure of the example",
     "- no studio glamour, no fantasy, no cartoon, no plastic skin",
-    "- use the gender and age range from the brief when they are provided",
+    "- use the selected gender and age range from the brief when they are provided",
     "- if a field is empty or marked не указано, do not write не указано in the final prompt; choose a plausible realistic detail that fits the brief",
     "",
     "Если в типаже или дополнительных деталях указаны актеры или актрисы как ориентиры: не копируй их, не делай lookalike, не упоминай имена в финальных промптах. Используй только общие черты типажа, пропорций, вайба и выражения лица, создавая новых оригинальных людей.",
