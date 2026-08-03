@@ -21,7 +21,7 @@ const topics = [
   },
   {
     id: "character-appearance",
-    title: "Nano Banana внешность",
+    title: "NB Appearance Options",
     category: "Изображения",
     meta: "Люди, типаж, возраст, детали",
     enabled: true,
@@ -853,7 +853,7 @@ function renderGrokOutput() {
 function renderCharacterOutput() {
   const prompts = getCharacterResults();
 
-  els.resultTitle.textContent = prompts.length ? "Варианты внешности" : "Nano Banana внешность";
+  els.resultTitle.textContent = prompts.length ? "Варианты внешности" : "NB Appearance Options";
   els.promptOutput.hidden = true;
   els.promptCards.hidden = false;
   els.copyButton.hidden = prompts.length === 0;
