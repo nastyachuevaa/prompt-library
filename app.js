@@ -7,14 +7,14 @@ const CHARACTER_SUFFIX = "Plain gray studio wall background, natural indoor phon
 const topics = [
   {
     id: "button-icon",
-    title: "3D иконка кнопки",
+    title: "LiveOps button",
     category: "Изображения",
-    meta: "Предмет, цвет, рефы, стеклянный стиль",
+    meta: "",
     enabled: true,
   },
   {
     id: "seedream-realism",
-    title: "Seedream реализм",
+    title: "OF style SeeDream",
     category: "Изображения",
     meta: "Айфон-кадр, сцена, люди, вайб",
     enabled: true,
@@ -138,7 +138,7 @@ function renderTopics() {
           ${topic.id === activeTopicId ? 'aria-current="true"' : ""}
         >
           <span class="topic-title">${topic.title}</span>
-          <span class="topic-meta">${topic.meta}</span>
+          ${topic.meta ? `<span class="topic-meta">${topic.meta}</span>` : ""}
         </button>
       `,
     )
