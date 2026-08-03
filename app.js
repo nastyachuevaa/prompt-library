@@ -372,7 +372,6 @@ function renderCharacterForm() {
       </div>
       <div class="ai-actions">
         <button class="primary-button" type="button" id="characterGenerateButton">Сгенерировать внешности</button>
-        <button class="ghost-button" type="button" id="characterRequestButton">Скопировать запрос</button>
       </div>
     </section>
   `;
@@ -1153,10 +1152,6 @@ function bindSeedreamControls() {
 
 function bindCharacterControls() {
   document.querySelector("#characterGenerateButton").addEventListener("click", generateCharacterVariants);
-  document.querySelector("#characterRequestButton").addEventListener("click", () => {
-    syncStateFromForm();
-    copyText(makeCharacterRequest(), "Запрос для Grok скопирован");
-  });
 }
 
 function handleFormInput(event) {
