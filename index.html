@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Библиотека промптов</title>
-    <link rel="stylesheet" href="styles.css?v=grok-cards-1" />
+    <link rel="stylesheet" href="styles.css?v=grok-copy-1" />
   </head>
   <body>
     <main class="app-shell" aria-label="Библиотека промптов">
@@ -50,21 +50,12 @@
           <textarea id="promptOutput" readonly aria-label="Готовый промпт"></textarea>
           <div class="prompt-cards" id="promptCards" hidden></div>
           <div class="result-actions">
-            <button class="primary-button" type="button" id="saveButton">Сохранить</button>
             <p class="status-text" id="statusText" aria-live="polite"></p>
           </div>
         </div>
-
-        <section class="saved-section" aria-labelledby="savedTitle">
-          <div class="saved-header">
-            <h2 id="savedTitle">Сохраненные</h2>
-            <button class="ghost-button compact" type="button" id="clearSavedButton">Очистить</button>
-          </div>
-          <div class="saved-list" id="savedList"></div>
-        </section>
       </section>
     </main>
 
-    <script src="app.js?v=grok-cards-1" defer></script>
+    <script src="app.js?v=grok-copy-1" defer></script>
   </body>
 </html>

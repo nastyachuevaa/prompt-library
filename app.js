@@ -62,11 +62,6 @@ const referencesByTopic = {
   "seedream-realism": [],
 };
 
-const storageKeys = {
-  "button-icon": "prompt-library.saved.button-icon.v2",
-  "seedream-realism": "prompt-library.saved.seedream-realism.v1",
-};
-
 const formState = {
   "button-icon": {
     subject: "",
@@ -96,12 +91,9 @@ const els = {
   promptOutput: document.querySelector("#promptOutput"),
   promptCards: document.querySelector("#promptCards"),
   copyButton: document.querySelector("#copyButton"),
-  saveButton: document.querySelector("#saveButton"),
   resetButton: document.querySelector("#resetButton"),
-  clearSavedButton: document.querySelector("#clearSavedButton"),
   refsSection: document.querySelector("#refsSection"),
   refsGrid: document.querySelector("#refsGrid"),
-  savedList: document.querySelector("#savedList"),
   statusText: document.querySelector("#statusText"),
 };
 
@@ -115,10 +107,6 @@ function escapeHTML(value) {
 
 function getTopic(topicId = activeTopicId) {
   return topics.find((topic) => topic.id === topicId) || topics[0];
-}
-
-function getStorageKey() {
-  return storageKeys[activeTopicId] || `prompt-library.saved.${activeTopicId}`;
 }
 
 function fieldValue(id) {
@@ -589,7 +577,6 @@ function renderPromptCards(prompts) {
             <span class="prompt-number">${String(index + 1).padStart(2, "0")}</span>
             <div class="prompt-card-actions">
               <button class="ghost-button compact" type="button" data-copy-result="${index}">Копировать</button>
-              <button class="ghost-button compact" type="button" data-save-result="${index}">Сохранить</button>
             </div>
           </header>
           <p>${escapeHTML(prompt)}</p>
@@ -604,9 +591,7 @@ function renderStandardOutput(title, prompt) {
   els.promptOutput.hidden = false;
   els.promptCards.hidden = true;
   els.copyButton.hidden = false;
-  els.saveButton.hidden = false;
   els.copyButton.textContent = "Копировать";
-  els.saveButton.textContent = "Сохранить";
   els.promptOutput.value = prompt;
 }
 
@@ -617,9 +602,7 @@ function renderGrokOutput() {
   els.promptOutput.hidden = true;
   els.promptCards.hidden = false;
   els.copyButton.hidden = prompts.length === 0;
-  els.saveButton.hidden = prompts.length === 0;
   els.copyButton.textContent = "Копировать все";
-  els.saveButton.textContent = "Сохранить все";
   els.promptOutput.value = prompts.length ? prompts.join("\n\n") : makeGrokRequest();
   renderPromptCards(prompts);
 }
@@ -744,65 +727,12 @@ function setStatus(message) {
   }, 1800);
 }
 
-function getSaved() {
-  try {
-    return JSON.parse(localStorage.getItem(getStorageKey())) || [];
-  } catch {
-    return [];
-  }
-}
-
-function setSaved(items) {
-  localStorage.setItem(getStorageKey(), JSON.stringify(items));
-}
-
 function getCurrentOutputText() {
   if (isSeedreamGrokMode() && getGrokResults().length) {
     return getGrokResults().join("\n\n");
   }
 
   return els.promptOutput.value;
-}
-
-function getPromptsToSave() {
-  if (isSeedreamGrokMode() && getGrokResults().length) return getGrokResults();
-
-  const prompt = els.promptOutput.value.trim();
-  return prompt ? [prompt] : [];
-}
-
-function renderSaved() {
-  const saved = getSaved();
-
-  if (!saved.length) {
-    els.savedList.innerHTML = '<p class="saved-empty">Пока пусто. Сохрани удачный промпт, и он появится здесь.</p>';
-    return;
-  }
-
-  els.savedList.innerHTML = saved
-    .map(
-      (item, index) => `
-        <article class="saved-item">
-          <p>${escapeHTML(item.prompt)}</p>
-          <button class="ghost-button compact" type="button" data-copy-saved="${index}">Скопировать</button>
-        </article>
-      `,
-    )
-    .join("");
-}
-
-function saveCurrentPrompt() {
-  const prompts = getPromptsToSave();
-  if (!prompts.length) return;
-
-  const saved = getSaved();
-  const uniquePrompts = [...new Set(prompts.map((prompt) => prompt.trim()).filter(Boolean))];
-  const withoutDuplicate = saved.filter((item) => !uniquePrompts.includes(item.prompt));
-  const newItems = uniquePrompts.map((prompt) => ({ prompt, createdAt: new Date().toISOString() }));
-
-  setSaved([...newItems, ...withoutDuplicate].slice(0, 24));
-  renderSaved();
-  setStatus(uniquePrompts.length > 1 ? "Сохранено все" : "Сохранено");
 }
 
 function resetForm() {
@@ -852,7 +782,6 @@ function renderActiveTopic() {
 
   renderReferences();
   updatePrompt();
-  renderSaved();
 }
 
 function bindButtonIconControls() {
@@ -911,13 +840,7 @@ function bindEvents() {
   els.promptForm.addEventListener("input", handleFormInput);
   els.promptForm.addEventListener("change", updatePrompt);
   els.copyButton.addEventListener("click", () => copyText(getCurrentOutputText()));
-  els.saveButton.addEventListener("click", saveCurrentPrompt);
   els.resetButton.addEventListener("click", resetForm);
-  els.clearSavedButton.addEventListener("click", () => {
-    setSaved([]);
-    renderSaved();
-    setStatus("Очищено");
-  });
   els.refsGrid.addEventListener("click", (event) => {
     const copyButton = event.target.closest("[data-copy-ref]");
     const openButton = event.target.closest("[data-open-ref]");
@@ -935,29 +858,13 @@ function bindEvents() {
   });
   els.promptCards.addEventListener("click", (event) => {
     const copyButton = event.target.closest("[data-copy-result]");
-    const saveButton = event.target.closest("[data-save-result]");
-    const index = Number(copyButton?.dataset.copyResult ?? saveButton?.dataset.saveResult);
+    const index = Number(copyButton?.dataset.copyResult);
     const prompt = getGrokResults()[index];
     if (!prompt) return;
 
     if (copyButton) {
       copyText(prompt);
-      return;
     }
-
-    const saved = getSaved();
-    const withoutDuplicate = saved.filter((item) => item.prompt !== prompt);
-    setSaved([{ prompt, createdAt: new Date().toISOString() }, ...withoutDuplicate].slice(0, 24));
-    renderSaved();
-    setStatus("Сохранено");
-  });
-  els.savedList.addEventListener("click", (event) => {
-    const button = event.target.closest("[data-copy-saved]");
-    if (!button) return;
-
-    const saved = getSaved();
-    const item = saved[Number(button.dataset.copySaved)];
-    if (item) copyText(item.prompt);
   });
 }
 
