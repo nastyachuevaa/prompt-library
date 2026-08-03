@@ -85,10 +85,6 @@ const formState = {
     gender: "",
     age: "",
     appearanceBase: "",
-    faceDetails: "",
-    bodyDetails: "",
-    clothing: "",
-    references: "",
     extra: "",
     count: "10",
     results: [],
@@ -340,60 +336,15 @@ function renderCharacterForm() {
     </div>
 
     <label class="field">
-      <span class="field-label">Этничность / общий типаж <span class="required-mark" aria-hidden="true">*</span></span>
+      <span class="field-label">Типаж / внешность <span class="required-mark" aria-hidden="true">*</span></span>
       <textarea
-        class="compact-textarea"
+        class="compact-textarea character-appearance-textarea"
         id="characterAppearanceBaseInput"
         name="appearanceBase"
-        rows="2"
+        rows="4"
         required
-        placeholder="например, очень светлая кожа, североевропейский типаж, холодная внешность"
+        placeholder="раса/этничность, кожа, волосы, глаза, лицо, тело, особенности фигуры, вайб"
       >${escapeHTML(state.appearanceBase)}</textarea>
-    </label>
-
-    <label class="field">
-      <span class="field-label">Лицо <span class="required-mark" aria-hidden="true">*</span></span>
-      <textarea
-        class="compact-textarea character-face"
-        id="characterFaceInput"
-        name="faceDetails"
-        rows="3"
-        required
-        placeholder="волосы, глаза, брови, скулы, нос, губы, взгляд, выражение лица"
-      >${escapeHTML(state.faceDetails)}</textarea>
-    </label>
-
-    <label class="field">
-      <span>Тело</span>
-      <textarea
-        class="compact-textarea"
-        id="characterBodyInput"
-        name="bodyDetails"
-        rows="2"
-        placeholder="рост, плечи, телосложение, шея, талия, мышцы, осанка"
-      >${escapeHTML(state.bodyDetails)}</textarea>
-    </label>
-
-    <label class="field">
-      <span>Одежда</span>
-      <textarea
-        class="compact-textarea"
-        id="characterClothingInput"
-        name="clothing"
-        rows="2"
-        placeholder="если важно: черная футболка, пиджак, платье, минималистичный образ"
-      >${escapeHTML(state.clothing)}</textarea>
-    </label>
-
-    <label class="field">
-      <span>Ориентиры актеров / актрис</span>
-      <textarea
-        class="compact-textarea"
-        id="characterReferencesInput"
-        name="references"
-        rows="2"
-        placeholder="например, похожий вайб или отдельные черты, но не копия"
-      >${escapeHTML(state.references)}</textarea>
     </label>
 
     <div class="field-row compact-row">
@@ -403,8 +354,8 @@ function renderCharacterForm() {
           class="compact-textarea"
           id="characterExtraInput"
           name="extra"
-          rows="2"
-          placeholder="настроение, запреты, важные детали, что точно не менять"
+          rows="3"
+          placeholder="одежда, актерские ориентиры, настроение, запреты, важные детали"
         >${escapeHTML(state.extra)}</textarea>
       </label>
 
@@ -618,7 +569,7 @@ function makeCharacterRequest() {
     "Пиши готовые промпты по-английски. Каждый вариант должен быть отдельной строкой.",
     "",
     "Обязательная структура каждого промпта:",
-    `${CHARACTER_PREFIX} {gender and age}, {ethnicity/general appearance}, {skin}, {hair}, {eyes}, {brows}, {cheekbones}, {nose}, {jawline}, {lips}, {gaze/expression}. {body}. {clothing}. ${CHARACTER_SUFFIX}`,
+    `${CHARACTER_PREFIX} {gender and age}, {race/ethnicity and overall type}, {skin}, {hair}, {eyes}, {brows}, {cheekbones}, {nose}, {jawline}, {lips}, {gaze/expression}. {body and silhouette if specified}. {clothing if specified}. ${CHARACTER_SUFFIX}`,
     "",
     "Общие требования ко всем вариантам:",
     "- realistic front-facing iPhone photo",
@@ -629,7 +580,7 @@ function makeCharacterRequest() {
     "- no studio glamour, no fantasy, no cartoon, no plastic skin",
     "- use the exact gender and age range from the brief",
     "",
-    "Если я указала актеров или актрис как ориентиры: не копируй их, не делай lookalike, не упоминай имена в финальных промптах. Используй только общие черты типажа, пропорций, вайба и выражения лица, создавая новых оригинальных людей.",
+    "Если в типаже или дополнительных деталях указаны актеры или актрисы как ориентиры: не копируй их, не делай lookalike, не упоминай имена в финальных промптах. Используй только общие черты типажа, пропорций, вайба и выражения лица, создавая новых оригинальных людей.",
     "Варианты должны отличаться друг от друга: форма лица, волосы, глаза, детали тела, одежда или выражение, но сохранять мои ключевые вводные.",
     "Верни только сами промпты: без объяснений, заголовков, нумерации и кавычек.",
     "Не используй имена персонажей в финальных промптах.",
@@ -637,11 +588,7 @@ function makeCharacterRequest() {
     "Мой бриф:",
     briefLine("Пол", getCharacterGenderValue() || state.gender),
     briefLine("Возраст", fieldValue("characterAgeInput") || state.age),
-    briefLine("Этничность / общий типаж", fieldValue("characterAppearanceBaseInput") || state.appearanceBase),
-    briefLine("Лицо", fieldValue("characterFaceInput") || state.faceDetails),
-    briefLine("Тело", fieldValue("characterBodyInput") || state.bodyDetails),
-    briefLine("Одежда", fieldValue("characterClothingInput") || state.clothing),
-    briefLine("Ориентиры актеров / актрис", fieldValue("characterReferencesInput") || state.references),
+    briefLine("Типаж / внешность", fieldValue("characterAppearanceBaseInput") || state.appearanceBase),
     briefLine("Дополнительно", fieldValue("characterExtraInput") || state.extra),
   ].join("\n");
 }
@@ -651,7 +598,6 @@ function getMissingCharacterFields() {
     "characterGenderField",
     "characterAgeInput",
     "characterAppearanceBaseInput",
-    "characterFaceInput",
   ].filter((id) => {
     if (id === "characterGenderField") return !getCharacterGenderValue();
     return !fieldValue(id);
@@ -882,10 +828,6 @@ function syncStateFromForm() {
       gender: getCharacterGenderValue(),
       age: fieldValue("characterAgeInput"),
       appearanceBase: fieldValue("characterAppearanceBaseInput"),
-      faceDetails: fieldValue("characterFaceInput"),
-      bodyDetails: fieldValue("characterBodyInput"),
-      clothing: fieldValue("characterClothingInput"),
-      references: fieldValue("characterReferencesInput"),
       extra: fieldValue("characterExtraInput"),
       count: fieldValue("characterCountInput") || "10",
       results: previousState.results || [],
@@ -1165,10 +1107,6 @@ function resetForm() {
       gender: "",
       age: "",
       appearanceBase: "",
-      faceDetails: "",
-      bodyDetails: "",
-      clothing: "",
-      references: "",
       extra: "",
       count: "10",
       results: [],

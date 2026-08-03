@@ -377,8 +377,8 @@ textarea {
   padding: 11px 12px;
 }
 
-.compact-textarea.character-face {
-  min-height: 92px;
+.compact-textarea.character-appearance-textarea {
+  min-height: 120px;
 }
 
 input[type="text"]:focus,
