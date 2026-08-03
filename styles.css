@@ -508,12 +508,6 @@ textarea:focus {
     #ffffff;
 }
 
-.character-helper {
-  background:
-    linear-gradient(135deg, rgba(63, 184, 159, 0.1), transparent 48%),
-    #ffffff;
-}
-
 .ai-helper-heading {
   display: flex;
   align-items: center;
@@ -532,6 +526,10 @@ textarea:focus {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
+}
+
+.character-actions {
+  display: flex;
 }
 
 .small-field {

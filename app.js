@@ -366,14 +366,9 @@ function renderCharacterForm() {
       </label>
     </div>
 
-    <section class="ai-helper character-helper" aria-labelledby="characterHelperTitle">
-      <div class="ai-helper-heading">
-        <h3 id="characterHelperTitle">Grok соберет варианты</h3>
-      </div>
-      <div class="ai-actions">
-        <button class="primary-button" type="button" id="characterGenerateButton">Сгенерировать внешности</button>
-      </div>
-    </section>
+    <div class="character-actions">
+      <button class="primary-button" type="button" id="characterGenerateButton">Сгенерировать варианты внешности</button>
+    </div>
   `;
 
   bindCharacterControls();
