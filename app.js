@@ -23,6 +23,12 @@ const topics = [
     category: "Изображения",
     enabled: true,
   },
+  {
+    id: "avatar-portrait",
+    title: "Avatars",
+    category: "Изображения",
+    enabled: true,
+  },
 ];
 
 const palettes = [
@@ -61,6 +67,7 @@ const referencesByTopic = {
   ],
   "seedream-realism": [],
   "character-appearance": [],
+  "avatar-portrait": [],
 };
 
 const formState = {
@@ -86,6 +93,11 @@ const formState = {
     count: "10",
     results: [],
     rawText: "",
+  },
+  "avatar-portrait": {
+    gender: "",
+    expression: "",
+    clothing: "",
   },
 };
 
@@ -374,6 +386,67 @@ function renderCharacterForm() {
   bindCharacterControls();
 }
 
+function renderAvatarForm() {
+  const state = formState["avatar-portrait"];
+
+  els.promptForm.innerHTML = `
+    <section class="fixed-brief" aria-label="Фиксированные требования">
+      <span>Image 1 identity</span>
+      <span>серый фон</span>
+      <span>85mm portrait</span>
+      <span>natural light</span>
+    </section>
+
+    <fieldset class="field choice-field" id="avatarGenderField">
+      <legend>Пол</legend>
+      <div class="choice-grid">
+        <label class="choice-option">
+          <input
+            type="radio"
+            name="avatarGender"
+            value="man"
+            ${state.gender === "man" ? "checked" : ""}
+          />
+          <span>Мужчина</span>
+        </label>
+        <label class="choice-option">
+          <input
+            type="radio"
+            name="avatarGender"
+            value="woman"
+            ${state.gender === "woman" ? "checked" : ""}
+          />
+          <span>Женщина</span>
+        </label>
+      </div>
+    </fieldset>
+
+    <div class="field-row">
+      <label class="field">
+        <span>Выражение лица</span>
+        <textarea
+          class="compact-textarea"
+          id="avatarExpressionInput"
+          name="expression"
+          rows="4"
+          placeholder="например, спокойный уверенный взгляд, легкая улыбка"
+        >${escapeHTML(state.expression)}</textarea>
+      </label>
+
+      <label class="field">
+        <span>Одежда</span>
+        <textarea
+          class="compact-textarea"
+          id="avatarClothingInput"
+          name="clothing"
+          rows="4"
+          placeholder="например, черная водолазка, свободный серый пиджак"
+        >${escapeHTML(state.clothing)}</textarea>
+      </label>
+    </div>
+  `;
+}
+
 function renderPalettes() {
   const state = formState["button-icon"];
   const paletteOptions = document.querySelector("#paletteOptions");
@@ -519,6 +592,10 @@ function makePrompt() {
     return makeSeedreamPrompt();
   }
 
+  if (activeTopicId === "avatar-portrait") {
+    return makeAvatarPrompt();
+  }
+
   return makeButtonIconPrompt();
 }
 
@@ -545,6 +622,10 @@ function briefLine(label, value) {
 
 function getCharacterGenderValue() {
   return document.querySelector('input[name="characterGender"]:checked')?.value || "";
+}
+
+function getAvatarGenderValue() {
+  return document.querySelector('input[name="avatarGender"]:checked')?.value || "";
 }
 
 function makeCharacterRequest() {
@@ -589,6 +670,32 @@ function makeCharacterRequest() {
     briefLine("Возраст", fieldValue("characterAgeInput") || state.age),
     briefLine("Описание", fieldValue("characterAppearanceBaseInput") || state.appearanceBase),
     briefLine("Запреты", fieldValue("characterAvoidInput") || state.avoid),
+  ].join("\n");
+}
+
+function makeAvatarPrompt() {
+  const state = formState["avatar-portrait"];
+  const gender = getAvatarGenderValue() || state.gender;
+  const subject = gender === "woman" ? "adult woman" : gender === "man" ? "adult man" : "person";
+  const pronoun = gender === "woman" ? "she" : gender === "man" ? "he" : "the person";
+  const possessive = gender === "woman" ? "her" : gender === "man" ? "his" : "their";
+  const expression = fieldValue("avatarExpressionInput") || "*выражение лица которое мне нужно*";
+  const clothing = fieldValue("avatarClothingInput") || "*одежда которая мне нужна*";
+
+  return [
+    "Preserve from Image 1: identity STRUCTURE only — facial bone structure, eye shape and color, eyebrow shape, nose shape, mouth shape at rest, ear shape, jawline, hairline, hair length and texture, facial hair if present, skin tone, neck, build, and overall likeness. The person must read as the same individual actively living the moment described, not as a face transplanted from the reference.",
+    `Subject: ${subject}.`,
+    `Change: ${pronoun} is in a relaxed leaning attitude with weight off one hip, shifting ${possessive} weight in a relaxed manner, making direct eye contact with the camera.`,
+    `Expression: ${expression}.`,
+    `Clothing: ${clothing}.`,
+    "",
+    "Camera: 85mm portrait lens, f/2.0, eye-level, mid-thigh crop, subject centered, head, hair, hands, and arms fully in frame.",
+    "",
+    "Lighting: soft natural daylight-balanced key from camera-front-left at ~45°, gentle white bounce fill from camera-front-right, balanced and even with a soft realistic falloff, neutral white balance, gentle catchlights in both eyes — should read as beautiful natural light, not a commercial studio. No backlight, rim light, edge light, hair light, colored gels, or cinematic grading.",
+    "",
+    "Background: solid dark warm grey seamless backdrop, evenly lit, no gradient, no vignette, soft natural contact shadow where the subject meets the floor.",
+    "",
+    "Realism: visible skin pores, natural skin texture with subtle asymmetry and a hint of real-skin imperfection (faint freckle, slight cheek warmth, small natural mark, or fine texture), peach fuzz, individual hair strands and a few natural flyaways, fabric weave, natural folds and drape, contact shadows, subtle film grain consistent with a high-end digital camera — not retouched, not airbrushed.",
   ].join("\n");
 }
 
@@ -803,6 +910,14 @@ function syncStateFromForm() {
       count: fieldValue("characterCountInput") || "10",
       results: previousState.results || [],
       rawText: previousState.rawText || "",
+    };
+  }
+
+  if (activeTopicId === "avatar-portrait") {
+    formState["avatar-portrait"] = {
+      gender: getAvatarGenderValue(),
+      expression: fieldValue("avatarExpressionInput"),
+      clothing: fieldValue("avatarClothingInput"),
     };
   }
 }
@@ -1078,6 +1193,14 @@ function resetForm() {
     };
   }
 
+  if (activeTopicId === "avatar-portrait") {
+    formState["avatar-portrait"] = {
+      gender: "",
+      expression: "",
+      clothing: "",
+    };
+  }
+
   renderActiveTopic();
 }
 
@@ -1101,6 +1224,8 @@ function renderActiveTopic() {
     renderSeedreamForm();
   } else if (activeTopicId === "character-appearance") {
     renderCharacterForm();
+  } else if (activeTopicId === "avatar-portrait") {
+    renderAvatarForm();
   } else {
     renderButtonIconForm();
   }
