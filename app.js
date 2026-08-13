@@ -1,122 +1,127 @@
 const SEEDREAM_PREFIX =
   "dynamic angled iphone shot, warm storytelling composition, dynamic tilted iphone shot, slight motion blur for realism, candid cinematic everyday moment, shot on iphone, phone quality, phone grain, iphone colors, dynamic angle, storytelling composition, dramatic composition, flirty vibe, low contrast, no studio lighting, slight hand shake, imperfect crop, iPhone front-camera,";
 
-const CHARACTER_PREFIX = "A realistic front-facing iPhone photo of";
 const CHARACTER_SUFFIX = "Plain gray studio wall background, natural indoor phone lighting, raw realistic iPhone photo";
 
-const topics = [
-  {
-    id: "character-appearance",
-    title: "NB Appearance Options",
-    category: "Изображения",
-    enabled: true,
-  },
-  {
-    id: "seedream-realism",
-    title: "OF style SeeDream",
-    category: "Изображения",
-    enabled: true,
-  },
-  {
-    id: "button-icon",
-    title: "LiveOps button",
-    category: "Изображения",
-    enabled: true,
-  },
-  {
-    id: "avatar-portrait",
-    title: "Avatars",
-    category: "Изображения",
-    enabled: true,
-  },
-];
-
-const palettes = [
-  {
-    id: "purple-pink",
-    label: "Фиолетовый / розовый",
-    prompt: "фиолетовый / розовый цвет",
-    gradient: "linear-gradient(135deg, #7c3aed, #ec4899)",
-  },
-  {
-    id: "ice-blue",
-    label: "Ледяной голубой",
-    prompt: "ледяной голубой цвет",
-    gradient: "linear-gradient(135deg, #38bdf8, #818cf8)",
-  },
-  {
-    id: "mint-lime",
-    label: "Мятный / лайм",
-    prompt: "мятный / лаймовый цвет",
-    gradient: "linear-gradient(135deg, #34d399, #a3e635)",
-  },
-  {
-    id: "coral-peach",
-    label: "Коралловый / персик",
-    prompt: "коралловый / персиковый цвет",
-    gradient: "linear-gradient(135deg, #fb7185, #fdba74)",
-  },
-];
-
-const referencesByTopic = {
-  "button-icon": [
-    {
-      title: "Реф 1",
-      src: "assets/ref-camera.png",
-    },
-  ],
-  "seedream-realism": [],
-  "character-appearance": [],
-  "avatar-portrait": [],
+const MODELS = {
+  auto: { label: "Auto", provider: "auto" },
+  "nano-banana-2": { label: "Nano Banana 2", provider: "nano-banana" },
+  "nano-banana": { label: "Nano Banana", provider: "nano-banana" },
+  seedream: { label: "SeeDream 4.5", provider: "seedream" },
 };
 
-const formState = {
-  "button-icon": {
+const TASKS = [
+  {
+    id: "appearance",
+    title: "NB Appearance Options",
+    modelLabel: "Nano Banana",
+    defaultModel: "nano-banana-2",
+    defaultAspect: "3:4",
+    defaultResolution: "1K",
+    defaultCount: 2,
+  },
+  {
+    id: "seedream",
+    title: "OF style SeeDream",
+    modelLabel: "SeeDream",
+    defaultModel: "seedream",
+    defaultAspect: "9:16",
+    defaultResolution: "1K",
+    defaultCount: 2,
+  },
+  {
+    id: "liveops",
+    title: "LiveOps button",
+    modelLabel: "Nano Banana",
+    defaultModel: "nano-banana-2",
+    defaultAspect: "1:1",
+    defaultResolution: "1K",
+    defaultCount: 4,
+  },
+  {
+    id: "avatars",
+    title: "Avatars",
+    modelLabel: "Nano Banana",
+    defaultModel: "nano-banana-2",
+    defaultAspect: "3:4",
+    defaultResolution: "1K",
+    defaultCount: 2,
+  },
+];
+
+const ASPECTS = ["1:1", "3:4", "4:5", "9:16", "16:9"];
+const RESOLUTIONS = ["1K", "2K", "4K"];
+
+const PALETTES = [
+  { id: "purple-pink", label: "Фиолетовый / розовый", prompt: "фиолетовый / розовый цвет", swatch: "linear-gradient(135deg, #7c3aed, #ec4899)" },
+  { id: "ice-blue", label: "Ледяной голубой", prompt: "ледяной голубой цвет", swatch: "linear-gradient(135deg, #38bdf8, #818cf8)" },
+  { id: "mint-lime", label: "Мятный / лайм", prompt: "мятный / лаймовый цвет", swatch: "linear-gradient(135deg, #34d399, #a3e635)" },
+  { id: "coral-peach", label: "Коралловый / персик", prompt: "коралловый / персиковый цвет", swatch: "linear-gradient(135deg, #fb7185, #fdba74)" },
+];
+
+const initialValues = {
+  appearance: {
+    gender: "adult man",
+    age: "",
+    description: "",
+    avoid: "",
+  },
+  seedream: {
+    idea: "",
+    extra: "",
+  },
+  liveops: {
     subject: "",
     palette: "purple-pink",
     customColor: "",
     details: "",
   },
-  "seedream-realism": {
-    mode: "grok",
-    directIdea: "",
-    grokIdea: "",
-    grokCount: "10",
-    grokResults: [],
-    grokRawText: "",
-  },
-  "character-appearance": {
-    gender: "",
-    age: "",
-    appearanceBase: "",
-    avoid: "",
-    count: "10",
-    results: [],
-    rawText: "",
-  },
-  "avatar-portrait": {
-    gender: "",
+  avatars: {
+    gender: "man",
     expression: "",
     clothing: "",
   },
 };
 
-const referencePayloads = new Map();
-let activeTopicId = "character-appearance";
+const state = {
+  activeTask: "appearance",
+  values: structuredClone(initialValues),
+  settings: Object.fromEntries(
+    TASKS.map((task) => [
+      task.id,
+      {
+        model: "auto",
+        aspect: task.defaultAspect,
+        resolution: task.defaultResolution,
+        count: task.defaultCount,
+      },
+    ]),
+  ),
+  references: Object.fromEntries(TASKS.map((task) => [task.id, []])),
+  results: [],
+  isGenerating: false,
+  status: "",
+};
 
 const els = {
-  topicList: document.querySelector("#topicList"),
-  builderCategory: document.querySelector("#builderCategory"),
-  builderTitle: document.querySelector("#builderTitle"),
-  promptForm: document.querySelector("#promptForm"),
-  resultTitle: document.querySelector("#resultTitle"),
-  promptOutput: document.querySelector("#promptOutput"),
-  promptCards: document.querySelector("#promptCards"),
-  copyButton: document.querySelector("#copyButton"),
+  taskTabs: document.querySelector("#taskTabs"),
+  taskModelLabel: document.querySelector("#taskModelLabel"),
+  taskTitle: document.querySelector("#taskTitle"),
+  briefForm: document.querySelector("#briefForm"),
   resetButton: document.querySelector("#resetButton"),
-  refsSection: document.querySelector("#refsSection"),
-  refsGrid: document.querySelector("#refsGrid"),
+  promptPreview: document.querySelector("#promptPreview"),
+  copyPromptButton: document.querySelector("#copyPromptButton"),
+  modelSelect: document.querySelector("#modelSelect"),
+  aspectOptions: document.querySelector("#aspectOptions"),
+  resolutionOptions: document.querySelector("#resolutionOptions"),
+  countInput: document.querySelector("#countInput"),
+  referenceInput: document.querySelector("#referenceInput"),
+  referenceList: document.querySelector("#referenceList"),
+  clearRefsButton: document.querySelector("#clearRefsButton"),
+  generateButton: document.querySelector("#generateButton"),
   statusText: document.querySelector("#statusText"),
+  resultsGrid: document.querySelector("#resultsGrid"),
+  clearResultsButton: document.querySelector("#clearResultsButton"),
 };
 
 function escapeHTML(value) {
@@ -127,363 +132,237 @@ function escapeHTML(value) {
     .replaceAll('"', "&quot;");
 }
 
-function getTopic(topicId = activeTopicId) {
-  return topics.find((topic) => topic.id === topicId) || topics[0];
+function getTask(taskId = state.activeTask) {
+  return TASKS.find((task) => task.id === taskId) || TASKS[0];
 }
 
-function fieldValue(id) {
-  return document.querySelector(`#${id}`)?.value.trim() || "";
+function getSettings() {
+  return state.settings[state.activeTask];
 }
 
-function renderTopics() {
-  els.topicList.innerHTML = topics
-    .map(
-      (topic) => `
-        <button
-          class="topic-button"
-          type="button"
-          data-topic="${topic.id}"
-          ${topic.enabled ? "" : "disabled"}
-          ${topic.id === activeTopicId ? 'aria-current="true"' : ""}
-        >
-          <span class="topic-title">${topic.title}</span>
-        </button>
-      `,
-    )
-    .join("");
+function getEffectiveModel() {
+  const task = getTask();
+  const selected = getSettings().model;
+  return selected === "auto" ? task.defaultModel : selected;
 }
 
-function renderButtonIconForm() {
-  const state = formState["button-icon"];
+function setStatus(message, persist = false) {
+  state.status = message;
+  els.statusText.textContent = message;
+  window.clearTimeout(setStatus.timer);
+  if (!persist) {
+    setStatus.timer = window.setTimeout(() => {
+      state.status = "";
+      els.statusText.textContent = "";
+    }, 2400);
+  }
+}
 
-  els.promptForm.innerHTML = `
-    <label class="field">
-      <span>Предмет на кнопке</span>
-      <input
-        id="subjectInput"
-        name="subject"
-        type="text"
-        value="${escapeHTML(state.subject)}"
-        placeholder="например, календарь, ключ, корзина"
-        autocomplete="off"
-      />
-    </label>
+function renderTabs() {
+  els.taskTabs.innerHTML = TASKS.map(
+    (task) => `
+      <button
+        class="task-tab"
+        type="button"
+        data-task="${task.id}"
+        ${task.id === state.activeTask ? 'aria-current="true"' : ""}
+      >
+        ${task.title}
+      </button>
+    `,
+  ).join("");
+}
 
-    <fieldset class="field color-field">
-      <legend>Цвет</legend>
-      <div class="swatch-grid" id="paletteOptions"></div>
-      <div class="custom-color-option" id="customColorOption">
-        <input
-          class="custom-color-radio"
-          id="customColorRadio"
-          type="radio"
-          name="palette"
-          value="custom"
-          ${state.palette === "custom" ? "checked" : ""}
-        />
-        <label class="custom-color-body" for="customColorInput">
-          <span>Свой цвет</span>
-          <input
-            id="customColorInput"
-            name="customColor"
-            type="text"
-            value="${escapeHTML(state.customColor)}"
-            placeholder="например, серебряный / лавандовый"
-            autocomplete="off"
-          />
-        </label>
+function renderAppearanceForm() {
+  const values = state.values.appearance;
+  return `
+    <fieldset class="field">
+      <legend>Пол</legend>
+      <div class="choice-row" data-field="gender">
+        <button class="choice-button" type="button" data-value="adult man" ${values.gender === "adult man" ? 'aria-pressed="true"' : ""}>Мужчина</button>
+        <button class="choice-button" type="button" data-value="adult woman" ${values.gender === "adult woman" ? 'aria-pressed="true"' : ""}>Женщина</button>
       </div>
     </fieldset>
 
+    <div class="field-grid">
+      <label class="field">
+        <span>Возраст</span>
+        <input data-input="age" type="text" value="${escapeHTML(values.age)}" placeholder="например, 28-30" autocomplete="off" />
+      </label>
+      <label class="field">
+        <span>Запреты</span>
+        <input data-input="avoid" type="text" value="${escapeHTML(values.avoid)}" placeholder="борода, татуировки, яркий макияж" autocomplete="off" />
+      </label>
+    </div>
+
     <label class="field">
-      <span>Дополнительные детали</span>
-      <textarea
-        id="detailsInput"
-        name="details"
-        rows="4"
-        placeholder="например, без фона, мягкий контур"
-      >${escapeHTML(state.details)}</textarea>
+      <span>Описание</span>
+      <textarea data-input="description" rows="7" placeholder="раса/этничность, внешность, волосы, глаза, тело, вайб, одежда">${escapeHTML(values.description)}</textarea>
     </label>
   `;
-
-  renderPalettes();
-  bindButtonIconControls();
 }
 
 function renderSeedreamForm() {
-  const state = formState["seedream-realism"];
+  const values = state.values.seedream;
+  return `
+    <label class="field">
+      <span>Идея сцены</span>
+      <textarea data-input="idea" rows="8" placeholder="например, девушка смеется в лифте, кадр будто снят случайно">${escapeHTML(values.idea)}</textarea>
+    </label>
+    <label class="field">
+      <span>Дополнительно</span>
+      <input data-input="extra" type="text" value="${escapeHTML(values.extra)}" placeholder="одежда, место, эмоция, запреты" autocomplete="off" />
+    </label>
+  `;
+}
 
-  els.promptForm.innerHTML = `
-    <fieldset class="field seedream-mode-field">
-      <legend>Опция</legend>
-      <div class="mode-grid seedream-mode-grid">
-        <label class="mode-option ai-mode">
-          <input
-            type="radio"
-            name="seedreamMode"
-            value="grok"
-            ${state.mode === "grok" ? "checked" : ""}
-          />
-          <span class="mode-copy">
-            <span class="mode-title">Развить через Grok</span>
-            <span class="mode-meta">Подборка отдельных вариантов</span>
-          </span>
-        </label>
-        <label class="mode-option direct-mode">
-          <input
-            type="radio"
-            name="seedreamMode"
-            value="direct"
-            ${state.mode === "direct" ? "checked" : ""}
-          />
-          <span class="mode-copy">
-            <span class="mode-title">Добавить мою идею</span>
-            <span class="mode-meta">Один готовый промпт</span>
-          </span>
-        </label>
+function renderLiveopsForm() {
+  const values = state.values.liveops;
+  return `
+    <label class="field">
+      <span>Предмет</span>
+      <input data-input="subject" type="text" value="${escapeHTML(values.subject)}" placeholder="например, камера, подарок, молния" autocomplete="off" />
+    </label>
+
+    <fieldset class="field">
+      <legend>Цвет</legend>
+      <div class="palette-grid">
+        ${PALETTES.map(
+          (palette) => `
+            <button class="palette-button" type="button" data-palette="${palette.id}" ${values.palette === palette.id ? 'aria-pressed="true"' : ""}>
+              <span class="palette-dot" style="background: ${palette.swatch}"></span>
+              <span>${palette.label}</span>
+            </button>
+          `,
+        ).join("")}
       </div>
     </fieldset>
 
-    <div class="mode-panel" data-mode-panel="direct" ${state.mode === "direct" ? "" : "hidden"}>
+    <div class="field-grid">
       <label class="field">
-        <span>Моя идея</span>
-        <textarea
-          id="seedreamDirectIdeaInput"
-          name="directIdea"
-          rows="6"
-          placeholder="например, девушка смеется в лифте, кадр будто снят случайно"
-        >${escapeHTML(state.directIdea)}</textarea>
+        <span>Свой цвет</span>
+        <input data-input="customColor" type="text" value="${escapeHTML(values.customColor)}" placeholder="например, серебряный / лавандовый" autocomplete="off" />
       </label>
-    </div>
-
-    <section class="ai-helper mode-panel" data-mode-panel="grok" aria-labelledby="aiHelperTitle" ${state.mode === "grok" ? "" : "hidden"}>
-      <div class="ai-helper-heading">
-        <h3 id="aiHelperTitle">Grok</h3>
-      </div>
-      <div class="ai-helper-grid">
-        <label class="field">
-          <span>Примерный запрос</span>
-          <textarea
-            id="seedreamGrokIdeaInput"
-            name="grokIdea"
-            rows="7"
-            placeholder="например, хочу 10 разных сцен про девушку после свидания, снято как случайный селфи-кадр"
-          >${escapeHTML(state.grokIdea)}</textarea>
-        </label>
-        <label class="field small-field">
-          <span>Сколько</span>
-          <input
-            id="seedreamGrokCountInput"
-            name="grokCount"
-            type="number"
-            min="1"
-            max="30"
-            value="${escapeHTML(state.grokCount)}"
-          />
-        </label>
-      </div>
-      <div class="ai-actions">
-        <button class="primary-button" type="button" id="grokGenerateButton">Сгенерировать через Grok</button>
-        <button class="ghost-button" type="button" id="aiRequestButton">Скопировать запрос</button>
-      </div>
-    </section>
-  `;
-
-  bindSeedreamControls();
-}
-
-function renderCharacterForm() {
-  const state = formState["character-appearance"];
-
-  els.promptForm.innerHTML = `
-    <section class="fixed-brief" aria-label="Фиксированные требования">
-      <span>iPhone фото</span>
-      <span>front-facing</span>
-      <span>серый студийный фон</span>
-      <span>raw realistic</span>
-      <span>attractive</span>
-    </section>
-
-    <div class="field-row character-basics-row">
-      <div class="field choice-field" id="characterGenderField" role="radiogroup" aria-labelledby="characterGenderLabel">
-        <span class="field-label" id="characterGenderLabel">Пол</span>
-        <div class="choice-grid">
-          <label class="choice-option">
-            <input
-              type="radio"
-              name="characterGender"
-              value="adult man"
-              ${state.gender === "adult man" ? "checked" : ""}
-            />
-            <span>Мужчина</span>
-          </label>
-          <label class="choice-option">
-            <input
-              type="radio"
-              name="characterGender"
-              value="adult woman"
-              ${state.gender === "adult woman" ? "checked" : ""}
-            />
-            <span>Женщина</span>
-          </label>
-        </div>
-      </div>
-
       <label class="field">
-        <span class="field-label">Возраст</span>
-        <input
-          id="characterAgeInput"
-          name="age"
-          type="text"
-          value="${escapeHTML(state.age)}"
-          placeholder="например, 28-30"
-          autocomplete="off"
-        />
+        <span>Детали</span>
+        <input data-input="details" type="text" value="${escapeHTML(values.details)}" placeholder="без фона, мягкий контур" autocomplete="off" />
       </label>
-    </div>
-
-    <label class="field">
-      <span class="field-label">Описание</span>
-      <textarea
-        class="compact-textarea character-appearance-textarea"
-        id="characterAppearanceBaseInput"
-        name="appearanceBase"
-        rows="4"
-        placeholder="раса/этничность, кожа, волосы, глаза, лицо, тело, особенности фигуры, вайб"
-      >${escapeHTML(state.appearanceBase)}</textarea>
-    </label>
-
-    <div class="field-row compact-row">
-      <label class="field">
-        <span>Запреты</span>
-        <textarea
-          class="compact-textarea"
-          id="characterAvoidInput"
-          name="avoid"
-          rows="3"
-          placeholder="что точно не нужно: борода, татуировки, улыбка, яркий макияж, похожесть на конкретного актера"
-        >${escapeHTML(state.avoid)}</textarea>
-      </label>
-
-      <label class="field small-field">
-        <span>Сколько</span>
-        <input
-          id="characterCountInput"
-          name="count"
-          type="number"
-          min="1"
-          max="20"
-          value="${escapeHTML(state.count)}"
-        />
-      </label>
-    </div>
-
-    <div class="character-actions">
-      <button class="primary-button" type="button" id="characterGenerateButton">Сгенерировать варианты внешности</button>
     </div>
   `;
-
-  bindCharacterControls();
 }
 
 function renderAvatarForm() {
-  const state = formState["avatar-portrait"];
-
-  els.promptForm.innerHTML = `
-    <section class="fixed-brief" aria-label="Фиксированные требования">
-      <span>Image 1 identity</span>
-      <span>серый фон</span>
-      <span>85mm portrait</span>
-      <span>natural light</span>
-    </section>
-
-    <fieldset class="field choice-field" id="avatarGenderField">
+  const values = state.values.avatars;
+  return `
+    <fieldset class="field">
       <legend>Пол</legend>
-      <div class="choice-grid">
-        <label class="choice-option">
-          <input
-            type="radio"
-            name="avatarGender"
-            value="man"
-            ${state.gender === "man" ? "checked" : ""}
-          />
-          <span>Мужчина</span>
-        </label>
-        <label class="choice-option">
-          <input
-            type="radio"
-            name="avatarGender"
-            value="woman"
-            ${state.gender === "woman" ? "checked" : ""}
-          />
-          <span>Женщина</span>
-        </label>
+      <div class="choice-row" data-field="gender">
+        <button class="choice-button" type="button" data-value="man" ${values.gender === "man" ? 'aria-pressed="true"' : ""}>Мужчина</button>
+        <button class="choice-button" type="button" data-value="woman" ${values.gender === "woman" ? 'aria-pressed="true"' : ""}>Женщина</button>
       </div>
     </fieldset>
 
-    <div class="field-row">
+    <div class="field-grid">
       <label class="field">
         <span>Выражение лица</span>
-        <textarea
-          class="compact-textarea"
-          id="avatarExpressionInput"
-          name="expression"
-          rows="4"
-          placeholder="например, спокойный уверенный взгляд, легкая улыбка"
-        >${escapeHTML(state.expression)}</textarea>
+        <textarea data-input="expression" rows="5" placeholder="например, спокойный уверенный взгляд, легкая улыбка">${escapeHTML(values.expression)}</textarea>
       </label>
-
       <label class="field">
         <span>Одежда</span>
-        <textarea
-          class="compact-textarea"
-          id="avatarClothingInput"
-          name="clothing"
-          rows="4"
-          placeholder="например, черная водолазка, свободный серый пиджак"
-        >${escapeHTML(state.clothing)}</textarea>
+        <textarea data-input="clothing" rows="5" placeholder="например, черная водолазка, свободный серый пиджак">${escapeHTML(values.clothing)}</textarea>
       </label>
     </div>
   `;
 }
 
-function renderPalettes() {
-  const state = formState["button-icon"];
-  const paletteOptions = document.querySelector("#paletteOptions");
-  if (!paletteOptions) return;
+function renderForm() {
+  if (state.activeTask === "appearance") els.briefForm.innerHTML = renderAppearanceForm();
+  if (state.activeTask === "seedream") els.briefForm.innerHTML = renderSeedreamForm();
+  if (state.activeTask === "liveops") els.briefForm.innerHTML = renderLiveopsForm();
+  if (state.activeTask === "avatars") els.briefForm.innerHTML = renderAvatarForm();
+}
 
-  paletteOptions.innerHTML = palettes
-    .map(
-      (palette) => `
-        <label class="swatch-option">
-          <input
-            type="radio"
-            name="palette"
-            value="${palette.id}"
-            ${state.palette === palette.id ? "checked" : ""}
-          />
-          <span class="swatch" style="background: ${palette.gradient}"></span>
-          <span class="swatch-name">${palette.label}</span>
-        </label>
-      `,
-    )
+function renderSettings() {
+  const task = getTask();
+  const settings = getSettings();
+
+  els.modelSelect.innerHTML = Object.entries(MODELS)
+    .map(([id, model]) => {
+      const label = id === "auto" ? `Auto (${MODELS[task.defaultModel].label})` : model.label;
+      return `<option value="${id}" ${settings.model === id ? "selected" : ""}>${label}</option>`;
+    })
     .join("");
+
+  els.aspectOptions.innerHTML = ASPECTS.map(
+    (aspect) => `
+      <button class="segment-button" type="button" data-setting="aspect" data-value="${aspect}" ${settings.aspect === aspect ? 'aria-pressed="true"' : ""}>${aspect}</button>
+    `,
+  ).join("");
+
+  els.resolutionOptions.innerHTML = RESOLUTIONS.map(
+    (resolution) => `
+      <button class="segment-button" type="button" data-setting="resolution" data-value="${resolution}" ${settings.resolution === resolution ? 'aria-pressed="true"' : ""}>${resolution}</button>
+    `,
+  ).join("");
+
+  els.countInput.value = settings.count;
 }
 
 function renderReferences() {
-  const references = referencesByTopic[activeTopicId] || [];
-  els.refsSection.hidden = references.length === 0;
+  const refs = state.references[state.activeTask];
+  if (state.activeTask === "liveops" && !refs.length) {
+    els.referenceList.innerHTML = `
+      <article class="reference-item fixed-reference">
+        <img src="assets/ref-camera.png" alt="LiveOps reference" />
+      </article>
+    `;
+    return;
+  }
 
-  els.refsGrid.innerHTML = references
+  els.referenceList.innerHTML = refs.length
+    ? refs
+        .map(
+          (ref, index) => `
+            <article class="reference-item">
+              <img src="${ref.dataUrl}" alt="${escapeHTML(ref.name)}" />
+              <button class="icon-button" type="button" data-remove-ref="${index}" aria-label="Удалить референс">×</button>
+            </article>
+          `,
+        )
+        .join("")
+    : '<p class="empty-note">Нет референсов</p>';
+}
+
+function renderPromptPreview() {
+  els.promptPreview.value = makePrompt();
+}
+
+function renderResults() {
+  if (state.isGenerating) {
+    els.resultsGrid.innerHTML = Array.from({ length: getSettings().count }, () => '<div class="result-card loading-card"></div>').join("");
+    return;
+  }
+
+  if (!state.results.length) {
+    els.resultsGrid.innerHTML = `
+      <div class="empty-results">
+        <span>Ready</span>
+      </div>
+    `;
+    return;
+  }
+
+  els.resultsGrid.innerHTML = state.results
     .map(
-      (reference, index) => `
-        <article class="ref-card">
-          <button class="ref-image-button" type="button" data-open-ref="${index}" aria-label="Открыть ${reference.title}">
-            <img src="${reference.src}" alt="${reference.title}" />
-          </button>
-          <div class="ref-actions">
-            <span>${reference.title}</span>
-            <button class="ghost-button compact" type="button" data-copy-ref="${index}">Копировать</button>
+      (image, index) => `
+        <article class="result-card">
+          <img src="${image.url}" alt="Generated image ${index + 1}" />
+          <div class="result-actions">
+            <span>${escapeHTML(image.modelLabel || "Image")}</span>
+            <div>
+              <button class="ghost-button compact" type="button" data-copy-image="${index}">Copy</button>
+              <a class="ghost-button compact" href="${image.url}" download="prompt-studio-${index + 1}.png">Download</a>
+            </div>
           </div>
         </article>
       `,
@@ -491,196 +370,63 @@ function renderReferences() {
     .join("");
 }
 
-function preloadReferences() {
-  Object.values(referencesByTopic)
-    .flat()
-    .forEach((reference) => loadReferencePayload(reference.src));
-}
-
-function blobToDataUrl(blob) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.addEventListener("load", () => resolve(reader.result));
-    reader.addEventListener("error", reject);
-    reader.readAsDataURL(blob);
-  });
-}
-
-function loadReferencePayload(src) {
-  if (!referencePayloads.has(src)) {
-    referencePayloads.set(
-      src,
-      fetch(src).then(async (response) => {
-        if (!response.ok) throw new Error("reference image unavailable");
-
-        const blob = await response.blob();
-        const dataUrl = await blobToDataUrl(blob);
-        return { blob, dataUrl };
-      }),
-    );
-  }
-
-  return referencePayloads.get(src);
-}
-
-function copyImageFallback(dataUrl) {
-  const holder = document.createElement("div");
-  const image = document.createElement("img");
-  const selection = window.getSelection();
-  const range = document.createRange();
-
-  holder.contentEditable = "true";
-  holder.style.position = "fixed";
-  holder.style.left = "-9999px";
-  holder.style.top = "0";
-  image.src = dataUrl;
-  holder.appendChild(image);
-  document.body.appendChild(holder);
-
-  range.selectNode(image);
-  selection.removeAllRanges();
-  selection.addRange(range);
-
-  const copied = document.execCommand("copy");
-  selection.removeAllRanges();
-  holder.remove();
-  return copied;
-}
-
-function getSelectedPalette() {
-  const selected = document.querySelector('input[name="palette"]:checked')?.value;
-  return palettes.find((palette) => palette.id === selected) || palettes[0];
-}
-
-function isCustomColorSelected() {
-  return document.querySelector('input[name="palette"]:checked')?.value === "custom";
+function renderAll() {
+  const task = getTask();
+  els.taskTitle.textContent = task.title;
+  els.taskModelLabel.textContent = task.modelLabel;
+  renderTabs();
+  renderForm();
+  renderSettings();
+  renderReferences();
+  renderPromptPreview();
+  renderResults();
 }
 
 function getColorPrompt() {
-  const customColor = fieldValue("customColorInput");
-  if (!isCustomColorSelected()) return getSelectedPalette().prompt;
-  if (!customColor) return "*цвет*";
+  const values = state.values.liveops;
+  const customColor = values.customColor.trim();
+  if (customColor) return customColor.toLowerCase().includes("цвет") ? customColor : `${customColor} цвет`;
 
-  return customColor.toLowerCase().includes("цвет") ? customColor : `${customColor} цвет`;
+  const palette = PALETTES.find((item) => item.id === values.palette) || PALETTES[0];
+  return palette.prompt;
 }
 
-function makeButtonIconPrompt() {
-  const subject = fieldValue("subjectInput") || "*предмет который я хочу изобразить на кнопке*";
-  const color = getColorPrompt();
-  const details = fieldValue("detailsInput");
+function makeAppearancePrompt() {
+  const values = state.values.appearance;
+  const subject =
+    values.gender === "adult woman"
+      ? "an attractive adult woman"
+      : values.gender === "adult man"
+        ? "an attractive adult man"
+        : "an attractive adult person";
+  const age = values.age.trim() ? ` around ${values.age.trim()} years old` : "";
+  const description = values.description.trim() || "with realistic natural facial features, expressive eyes, detailed hair, balanced body proportions, and a strong memorable visual type";
+  const avoid = values.avoid.trim() ? ` Avoid: ${values.avoid.trim()}.` : "";
 
-  return `3d иконка ${subject} глассморфизм ${color} вот как примеры. скопируй стиль рефов. полупрозрачно, глассморфизм${details ? ` ${details}` : ""}`;
+  return `A realistic front-facing iPhone photo of ${subject}${age}, ${description}. ${CHARACTER_SUFFIX}.${avoid}`;
 }
 
 function makeSeedreamPrompt() {
-  const idea = fieldValue("seedreamDirectIdeaInput") || "*моя идея изображения*";
-
-  return `${SEEDREAM_PREFIX} ${idea}`;
+  const values = state.values.seedream;
+  const idea = values.idea.trim() || "a candid everyday moment with a person caught mid-emotion";
+  const extra = values.extra.trim() ? ` ${values.extra.trim()}` : "";
+  return `${SEEDREAM_PREFIX} ${idea}${extra}`;
 }
 
-function getSeedreamMode() {
-  return document.querySelector('input[name="seedreamMode"]:checked')?.value || "grok";
-}
-
-function isSeedreamGrokMode() {
-  return activeTopicId === "seedream-realism" && formState["seedream-realism"].mode === "grok";
-}
-
-function makePrompt() {
-  if (activeTopicId === "seedream-realism") {
-    if (getSeedreamMode() === "grok") return makeGrokRequest();
-    return makeSeedreamPrompt();
-  }
-
-  if (activeTopicId === "avatar-portrait") {
-    return makeAvatarPrompt();
-  }
-
-  return makeButtonIconPrompt();
-}
-
-function makeGrokRequest() {
-  const idea = fieldValue("seedreamGrokIdeaInput") || "*примерный запрос для серии изображений*";
-  const count = Math.min(Math.max(Number(fieldValue("seedreamGrokCountInput")) || 10, 1), 30);
-  const countPhrase = count === 1 ? "1 готовый промпт" : `${count} разных готовых промптов`;
-
-  return [
-    `Сделай ${countPhrase} для реалистичных изображений в Seedream.`,
-    "Каждый промпт должен начинаться строго с этой фразы, без изменений:",
-    SEEDREAM_PREFIX,
-    "",
-    "После этой фразы развей мой примерный запрос в разные конкретные сцены. Пиши по-английски. Каждый вариант должен быть отдельной строкой и полностью готовым промптом для генерации.",
-    "Сохрани вайб candid iPhone / phone quality / imperfect real-life shot. Верни только сами промпты: без объяснений, заголовков, нумерации, кавычек и пояснений.",
-    "",
-    `Примерный запрос: ${idea}`,
-  ].join("\n");
-}
-
-function briefLine(label, value) {
-  return `${label}: ${value || "не указано"}`;
-}
-
-function getCharacterGenderValue() {
-  return document.querySelector('input[name="characterGender"]:checked')?.value || "";
-}
-
-function getAvatarGenderValue() {
-  return document.querySelector('input[name="avatarGender"]:checked')?.value || "";
-}
-
-function makeCharacterRequest() {
-  const state = formState["character-appearance"];
-  const count = Math.min(Math.max(Number(fieldValue("characterCountInput") || state.count) || 10, 1), 20);
-  const countPhrase = count === 1 ? "1 готовый промпт" : `${count} разных готовых промптов`;
-  const gender = getCharacterGenderValue() || state.gender;
-  const attractiveSubject =
-    gender === "adult woman"
-      ? "an attractive adult woman"
-      : gender === "adult man"
-        ? "an attractive adult man"
-        : "an attractive adult person";
-
-  return [
-    `Сделай ${countPhrase} для Nano Banana: разные варианты внешности одного персонажа по моему брифу.`,
-    "Пиши готовые промпты по-английски. Каждый вариант должен быть отдельной строкой.",
-    `Обязательное условие для каждого варианта: используй ровно эту базу персонажа — ${attractiveSubject}. Не смешивай два пола в одном финальном промпте.`,
-    "",
-    "Обязательная структура каждого промпта:",
-    `${CHARACTER_PREFIX} ${attractiveSubject} {age if provided, otherwise plausible adult age}, {race/ethnicity and overall type}, {skin}, {hair}, {eyes}, {brows}, {cheekbones}, {nose}, {jawline}, {lips}, {gaze/expression}. {body and silhouette if specified}. {clothing if specified}. ${CHARACTER_SUFFIX}`,
-    "",
-    "Общие требования ко всем вариантам:",
-    "- realistic front-facing iPhone photo",
-    "- plain gray studio wall background",
-    "- natural indoor phone lighting",
-    "- raw realistic iPhone photo",
-    `- every final prompt must describe ${attractiveSubject}`,
-    "- detailed face and body description, close to the structure of the example",
-    "- no studio glamour, no fantasy, no cartoon, no plastic skin",
-    "- use the selected gender and age range from the brief when they are provided",
-    "- if a field is empty or marked не указано, do not write не указано in the final prompt; choose a plausible realistic detail that fits the brief",
-    "- treat Запреты as strict negative constraints: do not add those features, style choices, similarities, clothes, body traits, or moods to the character",
-    "",
-    "Если в описании указаны актеры или актрисы как ориентиры: не копируй их, не делай lookalike, не упоминай имена в финальных промптах. Используй только общие черты типажа, пропорций, вайба и выражения лица, создавая новых оригинальных людей.",
-    "Варианты должны отличаться друг от друга: форма лица, волосы, глаза, детали тела, одежда или выражение, но сохранять мои ключевые вводные.",
-    "Верни только сами промпты: без объяснений, заголовков, нумерации и кавычек.",
-    "Не используй имена персонажей в финальных промптах.",
-    "",
-    "Мой бриф:",
-    briefLine("Пол", getCharacterGenderValue() || state.gender),
-    briefLine("Возраст", fieldValue("characterAgeInput") || state.age),
-    briefLine("Описание", fieldValue("characterAppearanceBaseInput") || state.appearanceBase),
-    briefLine("Запреты", fieldValue("characterAvoidInput") || state.avoid),
-  ].join("\n");
+function makeLiveopsPrompt() {
+  const values = state.values.liveops;
+  const subject = values.subject.trim() || "button object";
+  const details = values.details.trim() ? ` ${values.details.trim()}` : "";
+  return `3d иконка ${subject} глассморфизм ${getColorPrompt()} вот как примеры. скопируй стиль рефов. полупрозрачно, глассморфизм${details}`;
 }
 
 function makeAvatarPrompt() {
-  const state = formState["avatar-portrait"];
-  const gender = getAvatarGenderValue() || state.gender;
-  const subject = gender === "woman" ? "adult woman" : gender === "man" ? "adult man" : "person";
-  const pronoun = gender === "woman" ? "she" : gender === "man" ? "he" : "the person";
-  const possessive = gender === "woman" ? "her" : gender === "man" ? "his" : "their";
-  const expression = fieldValue("avatarExpressionInput") || "*выражение лица которое мне нужно*";
-  const clothing = fieldValue("avatarClothingInput") || "*одежда которая мне нужна*";
+  const values = state.values.avatars;
+  const subject = values.gender === "woman" ? "adult woman" : "adult man";
+  const pronoun = values.gender === "woman" ? "she" : "he";
+  const possessive = values.gender === "woman" ? "her" : "his";
+  const expression = values.expression.trim() || "neutral confident expression, direct eye contact";
+  const clothing = values.clothing.trim() || "simple clean contemporary clothing";
 
   return [
     "Preserve from Image 1: identity STRUCTURE only — facial bone structure, eye shape and color, eyebrow shape, nose shape, mouth shape at rest, ear shape, jawline, hairline, hair length and texture, facial hair if present, skin tone, neck, build, and overall likeness. The person must read as the same individual actively living the moment described, not as a face transplanted from the reference.",
@@ -688,308 +434,90 @@ function makeAvatarPrompt() {
     `Change: ${pronoun} is in a relaxed leaning attitude with weight off one hip, shifting ${possessive} weight in a relaxed manner, making direct eye contact with the camera.`,
     `Expression: ${expression}.`,
     `Clothing: ${clothing}.`,
-    "",
     "Camera: 85mm portrait lens, f/2.0, eye-level, mid-thigh crop, subject centered, head, hair, hands, and arms fully in frame.",
-    "",
     "Lighting: soft natural daylight-balanced key from camera-front-left at ~45°, gentle white bounce fill from camera-front-right, balanced and even with a soft realistic falloff, neutral white balance, gentle catchlights in both eyes — should read as beautiful natural light, not a commercial studio. No backlight, rim light, edge light, hair light, colored gels, or cinematic grading.",
-    "",
     "Background: solid dark warm grey seamless backdrop, evenly lit, no gradient, no vignette, soft natural contact shadow where the subject meets the floor.",
-    "",
-    "Realism: visible skin pores, natural skin texture with subtle asymmetry and a hint of real-skin imperfection (faint freckle, slight cheek warmth, small natural mark, or fine texture), peach fuzz, individual hair strands and a few natural flyaways, fabric weave, natural folds and drape, contact shadows, subtle film grain consistent with a high-end digital camera — not retouched, not airbrushed.",
-  ].join("\n");
+    "Realism: visible skin pores, natural skin texture with subtle asymmetry and a hint of real-skin imperfection, peach fuzz, individual hair strands and a few natural flyaways, fabric weave, natural folds and drape, contact shadows, subtle film grain consistent with a high-end digital camera — not retouched, not airbrushed.",
+  ].join("\n\n");
 }
 
-function normalizePromptLine(line) {
-  return line
-    .replace(/^\s*(?:\d+[\).:\-]\s*|[-*•]\s*)/, "")
-    .replace(/^["'“”]+|["'“”]+$/g, "")
-    .trim();
+function makePrompt() {
+  if (state.activeTask === "appearance") return makeAppearancePrompt();
+  if (state.activeTask === "seedream") return makeSeedreamPrompt();
+  if (state.activeTask === "liveops") return makeLiveopsPrompt();
+  return makeAvatarPrompt();
 }
 
-function ensureSeedreamPrefix(prompt) {
-  const trimmed = normalizePromptLine(prompt);
-  if (!trimmed) return "";
-
-  if (trimmed.toLowerCase().startsWith(SEEDREAM_PREFIX.toLowerCase())) {
-    return trimmed;
-  }
-
-  return `${SEEDREAM_PREFIX} ${trimmed}`;
-}
-
-function ensureCharacterFrame(prompt) {
-  let trimmed = normalizePromptLine(prompt);
-  if (!trimmed) return "";
-
-  if (!trimmed.toLowerCase().startsWith(CHARACTER_PREFIX.toLowerCase())) {
-    trimmed = `${CHARACTER_PREFIX} ${trimmed}`;
-  }
-
-  const lowerPrompt = trimmed.toLowerCase();
-  if (!/(gray|grey)/.test(lowerPrompt) || !lowerPrompt.includes("iphone")) {
-    trimmed = `${trimmed.replace(/[. ]*$/, "")}. ${CHARACTER_SUFFIX}`;
-  }
-
-  return trimmed;
-}
-
-function parseJSONPromptList(text) {
-  try {
-    const parsed = JSON.parse(text);
-    if (Array.isArray(parsed)) return parsed.filter(Boolean).map((item) => String(item));
-  } catch {
-    // Grok is asked for plain lines, so JSON is only a defensive fallback.
-  }
-
-  return [];
-}
-
-function isIntroLine(line) {
-  return /^(sure|here|below|these are|prompts?:|конечно|вот|держи)\b/i.test(line);
-}
-
-function parseGrokPrompts(text) {
-  const jsonPrompts = parseJSONPromptList(text);
-  if (jsonPrompts.length) return jsonPrompts.map(ensureSeedreamPrefix).filter(Boolean);
-
-  const lines = String(text)
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter(Boolean);
-
-  if (!lines.length) return [];
-
-  const prompts = [];
-  let current = "";
-  const prefixStart = SEEDREAM_PREFIX.slice(0, 42).toLowerCase();
-  const hasStructuredLines = lines.some((line) => {
-    const cleaned = normalizePromptLine(line);
-    return cleaned.toLowerCase().startsWith(prefixStart) || /^\s*(?:\d+[\).:\-]|[-*•])\s*/.test(line);
-  });
-
-  if (!hasStructuredLines) {
-    return lines.filter((line) => !isIntroLine(line)).map(ensureSeedreamPrefix).filter(Boolean);
-  }
-
-  lines.forEach((line) => {
-    const cleaned = normalizePromptLine(line);
-    if (!cleaned || (!current && isIntroLine(cleaned))) return;
-
-    const startsLikePrompt = cleaned.toLowerCase().startsWith(prefixStart);
-    const startsLikeListItem = /^\s*(?:\d+[\).:\-]|[-*•])\s*/.test(line);
-
-    if ((startsLikePrompt || startsLikeListItem) && current) {
-      prompts.push(current);
-      current = cleaned;
-      return;
-    }
-
-    current = current ? `${current} ${cleaned}` : cleaned;
-  });
-
-  if (current) prompts.push(current);
-
-  return prompts.map(ensureSeedreamPrefix).filter(Boolean);
-}
-
-function parseCharacterPrompts(text) {
-  const jsonPrompts = parseJSONPromptList(text);
-  if (jsonPrompts.length) return jsonPrompts.map(ensureCharacterFrame).filter(Boolean);
-
-  const lines = String(text)
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter(Boolean);
-
-  if (!lines.length) return [];
-
-  const prompts = [];
-  let current = "";
-  const prefixStart = CHARACTER_PREFIX.toLowerCase();
-  const hasStructuredLines = lines.some((line) => {
-    const cleaned = normalizePromptLine(line);
-    return cleaned.toLowerCase().startsWith(prefixStart) || /^\s*(?:\d+[\).:\-]|[-*•])\s*/.test(line);
-  });
-
-  if (!hasStructuredLines) {
-    return lines.filter((line) => !isIntroLine(line)).map(ensureCharacterFrame).filter(Boolean);
-  }
-
-  lines.forEach((line) => {
-    const cleaned = normalizePromptLine(line);
-    if (!cleaned || (!current && isIntroLine(cleaned))) return;
-
-    const startsLikePrompt = cleaned.toLowerCase().startsWith(prefixStart);
-    const startsLikeListItem = /^\s*(?:\d+[\).:\-]|[-*•])\s*/.test(line);
-
-    if ((startsLikePrompt || startsLikeListItem) && current) {
-      prompts.push(current);
-      current = cleaned;
-      return;
-    }
-
-    current = current ? `${current} ${cleaned}` : cleaned;
-  });
-
-  if (current) prompts.push(current);
-
-  return prompts.map(ensureCharacterFrame).filter(Boolean);
-}
-
-function getGrokResults() {
-  return formState["seedream-realism"].grokResults || [];
-}
-
-function getCharacterResults() {
-  return formState["character-appearance"].results || [];
-}
-
-function getCardResults() {
-  if (isSeedreamGrokMode()) return getGrokResults();
-  if (activeTopicId === "character-appearance") return getCharacterResults();
-  return [];
-}
-
-function clearGrokResults() {
-  formState["seedream-realism"].grokResults = [];
-  formState["seedream-realism"].grokRawText = "";
-}
-
-function clearCharacterResults() {
-  formState["character-appearance"].results = [];
-  formState["character-appearance"].rawText = "";
-}
-
-function getGenerateEndpoint() {
-  const savedEndpoint = localStorage.getItem("prompt-library.generateEndpoint") || "";
-  if (savedEndpoint) return savedEndpoint;
-
+function getImageEndpoint() {
   if (location.hostname === "localhost" || location.hostname === "127.0.0.1" || location.hostname.endsWith(".vercel.app")) {
-    return "/api/generate";
+    return "/api/image";
   }
 
   return "";
 }
 
-function updateAccentColor() {
-  const palette = getSelectedPalette();
-  document.documentElement.style.setProperty("--accent", palette.gradient.match(/#([0-9a-f]{6})/i)?.[0] || "#7c3aed");
-  document.documentElement.style.setProperty("--accent-2", palette.gradient.match(/#[0-9a-f]{6}/gi)?.[1] || "#ec4899");
+function validateBeforeGenerate() {
+  const values = state.values[state.activeTask];
+  if (state.activeTask === "liveops" && !values.subject.trim()) return "Введите предмет";
+  if (state.activeTask === "seedream" && !values.idea.trim()) return "Введите идею сцены";
+  if (state.activeTask === "appearance" && !values.description.trim()) return "Введите описание";
+  if (state.activeTask === "avatars" && !state.references.avatars.length) return "Добавьте Image 1";
+  return "";
 }
 
-function syncStateFromForm() {
-  if (activeTopicId === "button-icon") {
-    formState["button-icon"] = {
-      subject: fieldValue("subjectInput"),
-      palette: document.querySelector('input[name="palette"]:checked')?.value || "purple-pink",
-      customColor: fieldValue("customColorInput"),
-      details: fieldValue("detailsInput"),
-    };
+async function generateImages() {
+  const endpoint = getImageEndpoint();
+  if (!endpoint) {
+    setStatus("Откройте preview на Vercel", true);
     return;
   }
 
-  if (activeTopicId === "seedream-realism") {
-    const previousState = formState["seedream-realism"];
-    formState["seedream-realism"] = {
-      mode: getSeedreamMode(),
-      directIdea: fieldValue("seedreamDirectIdeaInput"),
-      grokIdea: fieldValue("seedreamGrokIdeaInput"),
-      grokCount: fieldValue("seedreamGrokCountInput") || "10",
-      grokResults: previousState.grokResults || [],
-      grokRawText: previousState.grokRawText || "",
-    };
-  }
-
-  if (activeTopicId === "character-appearance") {
-    const previousState = formState["character-appearance"];
-    formState["character-appearance"] = {
-      gender: getCharacterGenderValue(),
-      age: fieldValue("characterAgeInput"),
-      appearanceBase: fieldValue("characterAppearanceBaseInput"),
-      avoid: fieldValue("characterAvoidInput"),
-      count: fieldValue("characterCountInput") || "10",
-      results: previousState.results || [],
-      rawText: previousState.rawText || "",
-    };
-  }
-
-  if (activeTopicId === "avatar-portrait") {
-    formState["avatar-portrait"] = {
-      gender: getAvatarGenderValue(),
-      expression: fieldValue("avatarExpressionInput"),
-      clothing: fieldValue("avatarClothingInput"),
-    };
-  }
-}
-
-function renderPromptCards(prompts) {
-  if (!prompts.length) {
-    els.promptCards.innerHTML = '<div class="results-empty">Пока нет вариантов</div>';
+  const validationError = validateBeforeGenerate();
+  if (validationError) {
+    setStatus(validationError);
     return;
   }
 
-  els.promptCards.innerHTML = prompts
-    .map(
-      (prompt, index) => `
-        <article class="prompt-card">
-          <header class="prompt-card-header">
-            <span class="prompt-number">${String(index + 1).padStart(2, "0")}</span>
-            <div class="prompt-card-actions">
-              <button class="ghost-button compact" type="button" data-copy-result="${index}">Копировать</button>
-            </div>
-          </header>
-          <p>${escapeHTML(prompt)}</p>
-        </article>
-      `,
-    )
-    .join("");
-}
-
-function renderStandardOutput(title, prompt) {
-  els.resultTitle.textContent = title;
-  els.promptOutput.hidden = false;
-  els.promptCards.hidden = true;
-  els.copyButton.hidden = false;
-  els.copyButton.textContent = "Копировать";
-  els.promptOutput.value = prompt;
-}
-
-function renderGrokOutput() {
-  const prompts = getGrokResults();
-
-  els.resultTitle.textContent = prompts.length ? "Варианты Grok" : "Grok";
-  els.promptOutput.hidden = true;
-  els.promptCards.hidden = false;
-  els.copyButton.hidden = prompts.length === 0;
-  els.copyButton.textContent = "Копировать все";
-  els.promptOutput.value = prompts.length ? prompts.join("\n\n") : makeGrokRequest();
-  renderPromptCards(prompts);
-}
-
-function renderCharacterOutput() {
-  const prompts = getCharacterResults();
-
-  els.resultTitle.textContent = prompts.length ? "Варианты внешности" : "NB Appearance Options";
-  els.promptOutput.hidden = true;
-  els.promptCards.hidden = false;
-  els.copyButton.hidden = prompts.length === 0;
-  els.copyButton.textContent = "Копировать все";
-  els.promptOutput.value = prompts.length ? prompts.join("\n\n") : makeCharacterRequest();
-  renderPromptCards(prompts);
-}
-
-function updatePrompt() {
-  syncStateFromForm();
-
-  if (isSeedreamGrokMode()) {
-    renderGrokOutput();
-  } else if (activeTopicId === "character-appearance") {
-    renderCharacterOutput();
-  } else {
-    renderStandardOutput("Готовый промпт", makePrompt());
+  const settings = getSettings();
+  const modelKey = getEffectiveModel();
+  let inputReferences = state.references[state.activeTask].map((ref) => ref.dataUrl);
+  if (state.activeTask === "liveops" && !inputReferences.length) {
+    inputReferences = ["assets/ref-camera.png"];
   }
+  state.isGenerating = true;
+  state.results = [];
+  setStatus("Generating...", true);
+  renderResults();
 
-  updateAccentColor();
+  try {
+    const response = await fetch(endpoint, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        modelKey,
+        prompt: makePrompt(),
+        aspectRatio: settings.aspect,
+        resolution: settings.resolution,
+        count: settings.count,
+        inputReferences,
+      }),
+    });
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data?.error || "Generation failed");
+    }
+
+    const modelLabel = MODELS[modelKey]?.label || "Image";
+    state.results = (data.images || []).map((image) => ({ ...image, modelLabel }));
+    setStatus(state.results.length ? `Ready: ${state.results.length}` : "No image returned");
+  } catch {
+    state.results = [];
+    setStatus("Не удалось сгенерировать", true);
+  } finally {
+    state.isGenerating = false;
+    renderResults();
+  }
 }
 
 function copyTextFallback(text) {
@@ -998,7 +526,6 @@ function copyTextFallback(text) {
   textarea.setAttribute("readonly", "");
   textarea.style.position = "fixed";
   textarea.style.left = "-9999px";
-  textarea.style.top = "0";
   document.body.appendChild(textarea);
   textarea.select();
   const copied = document.execCommand("copy");
@@ -1006,326 +533,177 @@ function copyTextFallback(text) {
   return copied;
 }
 
-async function copyText(text, successMessage = "Скопировано") {
+async function copyPrompt() {
+  const prompt = makePrompt();
   try {
-    await navigator.clipboard.writeText(text);
-    setStatus(successMessage);
+    await navigator.clipboard.writeText(prompt);
+    setStatus("Prompt copied");
   } catch {
-    if (copyTextFallback(text)) {
-      setStatus(successMessage);
-    } else {
-      setStatus("Не удалось скопировать");
-    }
+    setStatus(copyTextFallback(prompt) ? "Prompt copied" : "Copy failed");
   }
 }
 
-async function copyReference(src) {
-  const payload = loadReferencePayload(src);
-
-  try {
-    if (navigator.clipboard?.write && typeof ClipboardItem !== "undefined") {
-      await navigator.clipboard.write([new ClipboardItem({ "image/png": payload.then((item) => item.blob) })]);
-      setStatus("Реф скопирован в буфер");
-      return;
-    }
-  } catch {
-    // The legacy path below covers browsers that block image clipboard writes.
+function dataUrlToBlob(dataUrl) {
+  const [header, base64] = dataUrl.split(",");
+  const mime = header.match(/data:(.*?);/)?.[1] || "image/png";
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let index = 0; index < binary.length; index += 1) {
+    bytes[index] = binary.charCodeAt(index);
   }
-
-  try {
-    const { dataUrl } = await payload;
-    if (!copyImageFallback(dataUrl)) throw new Error("legacy image copy failed");
-    setStatus("Реф скопирован в буфер");
-  } catch {
-    setStatus("Не удалось скопировать реф");
-  }
+  return new Blob([bytes], { type: mime });
 }
 
-async function generateWithGrok() {
-  syncStateFromForm();
-
-  const endpoint = getGenerateEndpoint();
-  if (!endpoint) {
-    setStatus("Backend еще не подключен");
-    return;
-  }
-
-  const button = document.querySelector("#grokGenerateButton");
-  const previousText = button?.textContent;
+async function copyImage(index) {
+  const image = state.results[index];
+  if (!image) return;
 
   try {
-    if (button) {
-      button.disabled = true;
-      button.textContent = "Генерирую...";
-    }
-    clearGrokResults();
-    renderGrokOutput();
-    setStatus("Генерирую...");
-
-    const response = await fetch(endpoint, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        request: makeGrokRequest(),
-      }),
-    });
-    const data = await response.json();
-
-    if (!response.ok) {
-      throw new Error(data?.error || "Generation failed");
+    if (!navigator.clipboard?.write || typeof ClipboardItem === "undefined") {
+      throw new Error("image clipboard unavailable");
     }
 
-    const prompts = parseGrokPrompts(data.text);
-    formState["seedream-realism"].grokRawText = data.text;
-    formState["seedream-realism"].grokResults = prompts.length ? prompts : [data.text.trim()].filter(Boolean);
-    renderGrokOutput();
-    setStatus(`Готово: ${formState["seedream-realism"].grokResults.length}`);
+    await navigator.clipboard.write([new ClipboardItem({ [image.mediaType || "image/png"]: dataUrlToBlob(image.url) })]);
+    setStatus("Image copied");
   } catch {
-    setStatus("Не удалось сгенерировать");
-  } finally {
-    if (button) {
-      button.disabled = false;
-      button.textContent = previousText;
-    }
+    setStatus("Copy unavailable");
   }
 }
 
-async function generateCharacterVariants() {
-  syncStateFromForm();
-
-  const endpoint = getGenerateEndpoint();
-  if (!endpoint) {
-    setStatus("Backend еще не подключен");
-    return;
-  }
-
-  const button = document.querySelector("#characterGenerateButton");
-  const previousText = button?.textContent;
-
-  try {
-    if (button) {
-      button.disabled = true;
-      button.textContent = "Генерирую...";
-    }
-    clearCharacterResults();
-    renderCharacterOutput();
-    setStatus("Генерирую...");
-
-    const response = await fetch(endpoint, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        request: makeCharacterRequest(),
-      }),
-    });
-    const data = await response.json();
-
-    if (!response.ok) {
-      throw new Error(data?.error || "Generation failed");
-    }
-
-    const prompts = parseCharacterPrompts(data.text);
-    formState["character-appearance"].rawText = data.text;
-    formState["character-appearance"].results = prompts.length ? prompts : [data.text.trim()].filter(Boolean);
-    renderCharacterOutput();
-    setStatus(`Готово: ${formState["character-appearance"].results.length}`);
-  } catch {
-    setStatus("Не удалось сгенерировать");
-  } finally {
-    if (button) {
-      button.disabled = false;
-      button.textContent = previousText;
-    }
-  }
+function fileToDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.addEventListener("load", () => resolve(reader.result));
+    reader.addEventListener("error", reject);
+    reader.readAsDataURL(file);
+  });
 }
 
-function setStatus(message) {
-  els.statusText.textContent = message;
-  window.clearTimeout(setStatus.timer);
-  setStatus.timer = window.setTimeout(() => {
-    els.statusText.textContent = "";
-  }, 1800);
-}
+async function addReferences(files) {
+  const refs = state.references[state.activeTask];
+  const slots = Math.max(0, 6 - refs.length);
+  const selectedFiles = Array.from(files).slice(0, slots);
 
-function getCurrentOutputText() {
-  const cardResults = getCardResults();
-  if (cardResults.length) {
-    return cardResults.join("\n\n");
-  }
+  const nextRefs = await Promise.all(
+    selectedFiles.map(async (file) => ({
+      name: file.name,
+      dataUrl: await fileToDataUrl(file),
+    })),
+  );
 
-  return els.promptOutput.value;
-}
-
-function resetForm() {
-  if (activeTopicId === "button-icon") {
-    formState["button-icon"] = {
-      subject: "",
-      palette: "purple-pink",
-      customColor: "",
-      details: "",
-    };
-  }
-
-  if (activeTopicId === "seedream-realism") {
-    formState["seedream-realism"] = {
-      mode: "grok",
-      directIdea: "",
-      grokIdea: "",
-      grokCount: "10",
-      grokResults: [],
-      grokRawText: "",
-    };
-  }
-
-  if (activeTopicId === "character-appearance") {
-    formState["character-appearance"] = {
-      gender: "",
-      age: "",
-      appearanceBase: "",
-      avoid: "",
-      count: "10",
-      results: [],
-      rawText: "",
-    };
-  }
-
-  if (activeTopicId === "avatar-portrait") {
-    formState["avatar-portrait"] = {
-      gender: "",
-      expression: "",
-      clothing: "",
-    };
-  }
-
-  renderActiveTopic();
-}
-
-function switchTopic(topicId) {
-  const topic = getTopic(topicId);
-  if (!topic.enabled || topic.id === activeTopicId) return;
-
-  syncStateFromForm();
-  activeTopicId = topic.id;
-  renderActiveTopic();
-}
-
-function renderActiveTopic() {
-  const topic = getTopic();
-  els.builderCategory.textContent = topic.category;
-  els.builderTitle.textContent = topic.title;
-  els.promptForm.classList.toggle("character-form", activeTopicId === "character-appearance");
-
-  renderTopics();
-  if (activeTopicId === "seedream-realism") {
-    renderSeedreamForm();
-  } else if (activeTopicId === "character-appearance") {
-    renderCharacterForm();
-  } else if (activeTopicId === "avatar-portrait") {
-    renderAvatarForm();
-  } else {
-    renderButtonIconForm();
-  }
-
+  refs.push(...nextRefs);
+  els.referenceInput.value = "";
   renderReferences();
-  updatePrompt();
 }
 
-function bindButtonIconControls() {
-  const customColorInput = document.querySelector("#customColorInput");
-  const customColorRadio = document.querySelector("#customColorRadio");
-  const customColorOption = document.querySelector("#customColorOption");
-
-  customColorInput.addEventListener("focus", () => {
-    customColorRadio.checked = true;
-    updatePrompt();
-  });
-  customColorInput.addEventListener("input", () => {
-    customColorRadio.checked = true;
-  });
-  customColorOption.addEventListener("click", () => {
-    customColorRadio.checked = true;
-    updatePrompt();
-  });
+function switchTask(taskId) {
+  if (!TASKS.some((task) => task.id === taskId)) return;
+  state.activeTask = taskId;
+  state.results = [];
+  setStatus("");
+  renderAll();
 }
 
-function bindSeedreamControls() {
-  els.promptForm.querySelectorAll('input[name="seedreamMode"]').forEach((input) => {
-    input.addEventListener("change", () => {
-      const mode = input.value;
-      els.promptForm.querySelectorAll("[data-mode-panel]").forEach((panel) => {
-        panel.hidden = panel.dataset.modePanel !== mode;
-      });
-      updatePrompt();
-    });
-  });
-
-  document.querySelector("#grokGenerateButton").addEventListener("click", generateWithGrok);
-  document.querySelector("#aiRequestButton").addEventListener("click", () => {
-    syncStateFromForm();
-    copyText(makeGrokRequest(), "Запрос для Grok скопирован");
-  });
-}
-
-function bindCharacterControls() {
-  document.querySelector("#characterGenerateButton").addEventListener("click", generateCharacterVariants);
+function resetTask() {
+  const task = getTask();
+  state.values[task.id] = structuredClone(initialValues[task.id]);
+  state.settings[task.id] = {
+    model: "auto",
+    aspect: task.defaultAspect,
+    resolution: task.defaultResolution,
+    count: task.defaultCount,
+  };
+  state.references[task.id] = [];
+  state.results = [];
+  setStatus("");
+  renderAll();
 }
 
 function handleFormInput(event) {
-  if (
-    activeTopicId === "seedream-realism" &&
-    event.target.matches("#seedreamGrokIdeaInput, #seedreamGrokCountInput")
-  ) {
-    clearGrokResults();
+  const input = event.target.closest("[data-input]");
+  if (!input) return;
+
+  state.values[state.activeTask][input.dataset.input] = input.value;
+  renderPromptPreview();
+}
+
+function handleFormClick(event) {
+  const choice = event.target.closest(".choice-button");
+  if (choice) {
+    const row = choice.closest("[data-field]");
+    state.values[state.activeTask][row.dataset.field] = choice.dataset.value;
+    renderForm();
+    renderPromptPreview();
+    return;
   }
 
-  if (activeTopicId === "character-appearance") {
-    clearCharacterResults();
+  const palette = event.target.closest("[data-palette]");
+  if (palette) {
+    state.values.liveops.palette = palette.dataset.palette;
+    state.values.liveops.customColor = "";
+    renderForm();
+    renderPromptPreview();
   }
-
-  updatePrompt();
 }
 
 function bindEvents() {
-  els.topicList.addEventListener("click", (event) => {
-    const button = event.target.closest("[data-topic]");
-    if (button) switchTopic(button.dataset.topic);
+  els.taskTabs.addEventListener("click", (event) => {
+    const tab = event.target.closest("[data-task]");
+    if (tab) switchTask(tab.dataset.task);
   });
 
-  els.promptForm.addEventListener("input", handleFormInput);
-  els.promptForm.addEventListener("change", handleFormInput);
-  els.copyButton.addEventListener("click", () => copyText(getCurrentOutputText()));
-  els.resetButton.addEventListener("click", resetForm);
-  els.refsGrid.addEventListener("click", (event) => {
-    const copyButton = event.target.closest("[data-copy-ref]");
-    const openButton = event.target.closest("[data-open-ref]");
-    const references = referencesByTopic[activeTopicId] || [];
-    const index = Number(copyButton?.dataset.copyRef ?? openButton?.dataset.openRef);
-    const reference = references[index];
-    if (!reference) return;
-
-    if (copyButton) {
-      copyReference(reference.src);
-      return;
-    }
-
-    window.open(reference.src, "_blank");
+  els.briefForm.addEventListener("input", handleFormInput);
+  els.briefForm.addEventListener("click", handleFormClick);
+  els.resetButton.addEventListener("click", resetTask);
+  els.copyPromptButton.addEventListener("click", (event) => {
+    event.preventDefault();
+    copyPrompt();
   });
-  els.promptCards.addEventListener("click", (event) => {
-    const copyButton = event.target.closest("[data-copy-result]");
-    const index = Number(copyButton?.dataset.copyResult);
-    const prompt = getCardResults()[index];
-    if (!prompt) return;
 
-    if (copyButton) {
-      copyText(prompt);
-    }
+  els.modelSelect.addEventListener("change", () => {
+    getSettings().model = els.modelSelect.value;
+    renderSettings();
+  });
+
+  els.aspectOptions.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-setting]");
+    if (!button) return;
+    getSettings()[button.dataset.setting] = button.dataset.value;
+    renderSettings();
+  });
+
+  els.resolutionOptions.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-setting]");
+    if (!button) return;
+    getSettings()[button.dataset.setting] = button.dataset.value;
+    renderSettings();
+  });
+
+  els.countInput.addEventListener("input", () => {
+    getSettings().count = Math.min(Math.max(Number(els.countInput.value) || 1, 1), 4);
+  });
+
+  els.referenceInput.addEventListener("change", () => addReferences(els.referenceInput.files));
+  els.clearRefsButton.addEventListener("click", () => {
+    state.references[state.activeTask] = [];
+    renderReferences();
+  });
+  els.generateButton.addEventListener("click", generateImages);
+  els.clearResultsButton.addEventListener("click", () => {
+    state.results = [];
+    renderResults();
+  });
+  els.referenceList.addEventListener("click", (event) => {
+    const removeButton = event.target.closest("[data-remove-ref]");
+    if (!removeButton) return;
+    state.references[state.activeTask].splice(Number(removeButton.dataset.removeRef), 1);
+    renderReferences();
+  });
+  els.resultsGrid.addEventListener("click", (event) => {
+    const copyButton = event.target.closest("[data-copy-image]");
+    if (copyButton) copyImage(Number(copyButton.dataset.copyImage));
   });
 }
 
-preloadReferences();
 bindEvents();
-renderActiveTopic();
+renderAll();

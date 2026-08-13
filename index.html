@@ -3,59 +3,102 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Библиотека промптов</title>
-    <link rel="stylesheet" href="styles.css?v=avatar-tab-1" />
+    <title>Prompt Studio</title>
+    <link rel="stylesheet" href="styles.css?v=studio-1" />
   </head>
   <body>
-    <main class="app-shell" aria-label="Библиотека промптов">
-      <aside class="topics-panel" aria-label="Темы промптов">
+    <main class="studio-shell" aria-label="Prompt Studio">
+      <header class="topbar">
         <div class="brand">
-          <span class="brand-mark" aria-hidden="true">P</span>
+          <span class="brand-mark" aria-hidden="true">PS</span>
           <div>
-            <p class="eyebrow">Моя библиотека</p>
-            <h1>Промпты</h1>
+            <p class="eyebrow">Draft</p>
+            <h1>Prompt Studio</h1>
           </div>
         </div>
 
-        <nav class="topic-list" id="topicList" aria-label="Список тем"></nav>
-      </aside>
+        <nav class="task-tabs" id="taskTabs" aria-label="Основные задачи"></nav>
+      </header>
 
-      <section class="builder-panel" aria-labelledby="builderTitle">
-        <div class="builder-heading">
-          <div>
-            <p class="eyebrow" id="builderCategory">Изображения</p>
-            <h2 id="builderTitle">NB Appearance Options</h2>
+      <section class="workspace">
+        <section class="brief-panel" aria-labelledby="taskTitle">
+          <div class="panel-heading">
+            <div>
+              <p class="eyebrow" id="taskModelLabel">Nano Banana</p>
+              <h2 id="taskTitle">NB Appearance Options</h2>
+            </div>
+            <button class="ghost-button" type="button" id="resetButton">Сбросить</button>
           </div>
-          <button class="ghost-button" type="button" id="resetButton">Сбросить</button>
-        </div>
 
-        <form class="prompt-form" id="promptForm"></form>
-      </section>
+          <form class="brief-form" id="briefForm"></form>
 
-      <section class="result-panel" aria-labelledby="resultTitle">
-        <section class="refs-section" id="refsSection" aria-labelledby="refsTitle">
-          <div class="refs-header">
-            <h2 id="refsTitle">Рефы</h2>
-          </div>
-          <div class="refs-grid" id="refsGrid"></div>
+          <details class="prompt-preview">
+            <summary>
+              <span>Prompt preview</span>
+              <button class="ghost-button compact" type="button" id="copyPromptButton">Копировать</button>
+            </summary>
+            <textarea id="promptPreview" readonly aria-label="Prompt preview"></textarea>
+          </details>
         </section>
 
-        <div class="result-block">
-          <div class="result-header">
-            <h2 id="resultTitle">Готовый промпт</h2>
-            <button class="ghost-button" type="button" id="copyButton">
-              Копировать
-            </button>
-          </div>
-          <textarea id="promptOutput" readonly aria-label="Готовый промпт"></textarea>
-          <div class="prompt-cards" id="promptCards" hidden></div>
-          <div class="result-actions">
+        <aside class="settings-panel" aria-labelledby="settingsTitle">
+          <div class="panel-heading compact-heading">
+            <h2 id="settingsTitle">Generate</h2>
             <p class="status-text" id="statusText" aria-live="polite"></p>
           </div>
-        </div>
+
+          <div class="settings-stack">
+            <label class="field">
+              <span>Model</span>
+              <select id="modelSelect" aria-label="Model"></select>
+            </label>
+
+            <fieldset class="field">
+              <legend>Aspect</legend>
+              <div class="segmented-grid" id="aspectOptions"></div>
+            </fieldset>
+
+            <fieldset class="field">
+              <legend>Size</legend>
+              <div class="segmented-grid three" id="resolutionOptions"></div>
+            </fieldset>
+
+            <label class="field">
+              <span>Images</span>
+              <input id="countInput" type="number" min="1" max="4" value="2" />
+            </label>
+
+            <section class="reference-box" aria-labelledby="referenceTitle">
+              <div class="reference-header">
+                <h3 id="referenceTitle">References</h3>
+                <button class="ghost-button compact" type="button" id="clearRefsButton">Очистить</button>
+              </div>
+              <label class="upload-zone" for="referenceInput">
+                <input id="referenceInput" type="file" accept="image/*" multiple />
+                <span>Добавить изображения</span>
+              </label>
+              <div class="reference-list" id="referenceList"></div>
+            </section>
+          </div>
+
+          <button class="primary-button generate-button" type="button" id="generateButton">
+            Generate
+          </button>
+        </aside>
+
+        <section class="results-panel" aria-labelledby="resultsTitle">
+          <div class="results-header">
+            <div>
+              <p class="eyebrow">Output</p>
+              <h2 id="resultsTitle">Images</h2>
+            </div>
+            <button class="ghost-button" type="button" id="clearResultsButton">Очистить</button>
+          </div>
+          <div class="results-grid" id="resultsGrid"></div>
+        </section>
       </section>
     </main>
 
-    <script src="app.js?v=avatar-tab-1" defer></script>
+    <script src="app.js?v=studio-1" defer></script>
   </body>
 </html>
