@@ -54,6 +54,10 @@ const TASKS = [
 
 const ASPECTS = ["1:1", "3:4", "4:5", "9:16", "16:9"];
 const RESOLUTIONS = ["1K", "2K", "4K"];
+const POLL_INTERVAL_MS = 3000;
+const GENERATION_TIMEOUT_MS = 300000;
+const COMPLETED_STATUSES = new Set(["completed", "succeeded", "success", "done"]);
+const FAILED_STATUSES = new Set(["failed", "error", "timeout", "canceled", "cancelled"]);
 
 const PALETTES = [
   { id: "purple-pink", label: "Фиолетовый / розовый", prompt: "фиолетовый / розовый цвет", swatch: "linear-gradient(135deg, #7c3aed, #ec4899)" },
@@ -355,7 +359,8 @@ function renderPromptPreview() {
 
 function renderResults() {
   if (state.isGenerating) {
-    els.resultsGrid.innerHTML = Array.from({ length: getSettings().count }, () => '<div class="result-card loading-card"></div>').join("");
+    const remainingCount = Math.max(getSettings().count - state.results.length, 1);
+    els.resultsGrid.innerHTML = `${renderResultCards()}${Array.from({ length: remainingCount }, () => '<div class="result-card loading-card"></div>').join("")}`;
     return;
   }
 
@@ -368,7 +373,11 @@ function renderResults() {
     return;
   }
 
-  els.resultsGrid.innerHTML = state.results
+  els.resultsGrid.innerHTML = renderResultCards();
+}
+
+function renderResultCards() {
+  return state.results
     .map(
       (image, index) => `
         <article class="result-card">
@@ -510,6 +519,7 @@ async function generateImages() {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
+        action: "start",
         modelKey,
         prompt: makePrompt(),
         aspectRatio: settings.aspect,
@@ -526,7 +536,18 @@ async function generateImages() {
 
     const modelLabel = MODELS[modelKey]?.label || "Image";
     state.results = (data.images || []).map((image) => ({ ...image, modelLabel }));
-    setStatus(state.results.length ? `Ready: ${state.results.length}` : "No image returned");
+    renderResults();
+
+    const pendingIds = (data.predictions || [])
+      .filter((prediction) => !COMPLETED_STATUSES.has(prediction.status) && !FAILED_STATUSES.has(prediction.status))
+      .map((prediction) => prediction.id)
+      .filter(Boolean);
+
+    if (pendingIds.length) {
+      await pollImageJobs({ endpoint, modelKey, modelLabel, pendingIds });
+    } else {
+      setStatus(state.results.length ? `Ready: ${state.results.length}` : "No image returned");
+    }
   } catch (error) {
     state.results = [];
     const message = error.message?.includes("Atlas Cloud key")
@@ -536,6 +557,71 @@ async function generateImages() {
   } finally {
     state.isGenerating = false;
     renderResults();
+  }
+}
+
+function wait(ms) {
+  return new Promise((resolve) => {
+    window.setTimeout(resolve, ms);
+  });
+}
+
+function addGeneratedImages(images, modelLabel) {
+  const existingUrls = new Set(state.results.map((image) => image.url));
+  const nextImages = (images || [])
+    .filter((image) => image?.url && !existingUrls.has(image.url))
+    .map((image) => ({ ...image, modelLabel }));
+
+  state.results.push(...nextImages);
+}
+
+async function pollImageJobs({ endpoint, modelKey, modelLabel, pendingIds }) {
+  const startedAt = Date.now();
+  let remainingIds = pendingIds;
+
+  setStatus(`Atlas Cloud: ждем ${remainingIds.length}`, true);
+
+  while (remainingIds.length && Date.now() - startedAt < GENERATION_TIMEOUT_MS) {
+    await wait(POLL_INTERVAL_MS);
+
+    const response = await fetch(endpoint, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "poll",
+        modelKey,
+        predictionIds: remainingIds,
+      }),
+    });
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data?.error || "Generation failed");
+    }
+
+    const predictions = data.predictions || [];
+    const failed = predictions.find((prediction) => FAILED_STATUSES.has(prediction.status));
+    if (failed) {
+      throw new Error(failed.error || "Atlas Cloud generation failed");
+    }
+
+    addGeneratedImages(data.images, modelLabel);
+    remainingIds = predictions
+      .filter((prediction) => !COMPLETED_STATUSES.has(prediction.status))
+      .map((prediction) => prediction.id)
+      .filter(Boolean);
+
+    setStatus(
+      remainingIds.length
+        ? `Atlas Cloud: готово ${state.results.length}, ждем ${remainingIds.length}`
+        : `Ready: ${state.results.length}`,
+      true,
+    );
+    renderResults();
+  }
+
+  if (remainingIds.length) {
+    throw new Error("Atlas Cloud пока не вернул картинку. Попробуйте 1 изображение или меньший размер.");
   }
 }
 

@@ -29,6 +29,8 @@ const atlasModels = {
 
 const allowedAspectRatios = new Set(["1:1", "3:4", "4:5", "9:16", "16:9"]);
 const allowedResolutions = new Set(["1K", "2K", "4K"]);
+const completedStatuses = new Set(["completed", "succeeded", "success", "done"]);
+const failedStatuses = new Set(["failed", "error", "timeout", "canceled", "cancelled"]);
 
 function setCorsHeaders(req, res) {
   const origin = req.headers.origin;
@@ -55,12 +57,6 @@ function getAspectRatio(value) {
 
 function getResolution(value) {
   return allowedResolutions.has(value) ? value : "1K";
-}
-
-function sleep(ms) {
-  return new Promise((resolve) => {
-    setTimeout(resolve, ms);
-  });
 }
 
 function parseDataUrl(dataUrl) {
@@ -206,35 +202,19 @@ async function submitAtlasGeneration(apiKey, payload) {
   return prediction;
 }
 
-async function pollAtlasPrediction(apiKey, predictionId) {
-  const startedAt = Date.now();
-  const maxWaitMs = 55000;
+async function getAtlasPrediction(apiKey, predictionId) {
+  const response = await fetch(`${ATLAS_BASE_URL}/prediction/${predictionId}`, {
+    headers: {
+      "Authorization": `Bearer ${apiKey}`,
+    },
+  });
+  const data = await response.json();
 
-  while (Date.now() - startedAt < maxWaitMs) {
-    const response = await fetch(`${ATLAS_BASE_URL}/prediction/${predictionId}`, {
-      headers: {
-        "Authorization": `Bearer ${apiKey}`,
-      },
-    });
-    const data = await response.json();
-
-    if (!response.ok) {
-      throw new Error(data?.error || data?.message || "Atlas Cloud polling failed");
-    }
-
-    const prediction = data?.data || data;
-    if (["completed", "succeeded"].includes(prediction?.status)) {
-      return prediction;
-    }
-
-    if (["failed", "error", "timeout"].includes(prediction?.status)) {
-      throw new Error(prediction?.error || "Atlas Cloud generation failed");
-    }
-
-    await sleep(2500);
+  if (!response.ok) {
+    throw new Error(data?.error || data?.message || "Atlas Cloud polling failed");
   }
 
-  throw new Error("Atlas Cloud generation is still processing");
+  return data?.data || data;
 }
 
 function getOutputUrls(prediction) {
@@ -255,7 +235,7 @@ function getPredictionId(prediction) {
 }
 
 function isPredictionComplete(prediction) {
-  return ["completed", "succeeded"].includes(prediction?.status) && getOutputUrls(prediction).length > 0;
+  return completedStatuses.has(prediction?.status) && getOutputUrls(prediction).length > 0;
 }
 
 function getMediaType(url) {
@@ -263,6 +243,57 @@ function getMediaType(url) {
   if (cleanUrl.endsWith(".jpg") || cleanUrl.endsWith(".jpeg")) return "image/jpeg";
   if (cleanUrl.endsWith(".webp")) return "image/webp";
   return "image/png";
+}
+
+function formatImages(outputs) {
+  return outputs.map((url) => ({
+    url,
+    mediaType: getMediaType(url),
+  }));
+}
+
+function formatPrediction(prediction) {
+  const outputs = getOutputUrls(prediction);
+  return {
+    id: getPredictionId(prediction),
+    status: prediction?.status || "processing",
+    error: prediction?.error || "",
+    images: formatImages(outputs),
+  };
+}
+
+async function startAtlasJobs({ apiKey, modelConfig, prompt, count, aspectRatio, resolution, inputReferences }) {
+  const uploadedReferences = (
+    await Promise.all(inputReferences.map((reference, index) => uploadReference(apiKey, reference, index)))
+  ).filter(Boolean);
+
+  return Promise.all(
+    Array.from({ length: count }, async () => {
+      const payload = buildAtlasPayload({
+        modelConfig,
+        prompt,
+        aspectRatio,
+        resolution,
+        uploadedReferences,
+      });
+      const submitted = await submitAtlasGeneration(apiKey, payload);
+      const predictionId = getPredictionId(submitted);
+      if (!predictionId && !isPredictionComplete(submitted)) {
+        throw new Error("Atlas Cloud did not return a prediction id");
+      }
+
+      return formatPrediction(submitted);
+    }),
+  );
+}
+
+async function pollAtlasJobs({ apiKey, predictionIds }) {
+  return Promise.all(
+    predictionIds.map(async (predictionId) => {
+      const prediction = await getAtlasPrediction(apiKey, predictionId);
+      return formatPrediction(prediction);
+    }),
+  );
 }
 
 module.exports = async function handler(req, res) {
@@ -284,8 +315,9 @@ module.exports = async function handler(req, res) {
     return;
   }
 
+  const action = req.body?.action === "poll" ? "poll" : "start";
   const prompt = typeof req.body?.prompt === "string" ? req.body.prompt.trim() : "";
-  if (!prompt) {
+  if (action === "start" && !prompt) {
     res.status(400).json({ error: "Prompt is required" });
     return;
   }
@@ -295,34 +327,40 @@ module.exports = async function handler(req, res) {
   const aspectRatio = getAspectRatio(req.body?.aspectRatio);
   const resolution = getResolution(req.body?.resolution);
   const inputReferences = Array.isArray(req.body?.inputReferences) ? req.body.inputReferences.slice(0, 10) : [];
+  const predictionIds = Array.isArray(req.body?.predictionIds)
+    ? req.body.predictionIds.filter((item) => typeof item === "string" && item).slice(0, 4)
+    : [];
 
   try {
-    const uploadedReferences = (
-      await Promise.all(inputReferences.map((reference, index) => uploadReference(apiKey, reference, index)))
-    ).filter(Boolean);
-    const requests = Array.from({ length: count }, async () => {
-      const payload = buildAtlasPayload({
-        modelConfig,
-        prompt,
-        aspectRatio,
-        resolution,
-        uploadedReferences,
-      });
-      const submitted = await submitAtlasGeneration(apiKey, payload);
-      const predictionId = getPredictionId(submitted);
-      if (!predictionId && !isPredictionComplete(submitted)) {
-        throw new Error("Atlas Cloud did not return a prediction id");
+    if (action === "poll") {
+      if (!predictionIds.length) {
+        res.status(400).json({ error: "Prediction ids are required" });
+        return;
       }
-      const completed = isPredictionComplete(submitted) ? submitted : await pollAtlasPrediction(apiKey, predictionId);
-      return getOutputUrls(completed);
+
+      const predictions = await pollAtlasJobs({ apiKey, predictionIds });
+      res.status(200).json({
+        predictions,
+        images: predictions.flatMap((prediction) => prediction.images),
+        model: modelConfig.label,
+        provider: "atlas-cloud",
+      });
+      return;
+    }
+
+    const predictions = await startAtlasJobs({
+      apiKey,
+      modelConfig,
+      prompt,
+      count,
+      aspectRatio,
+      resolution,
+      inputReferences,
     });
-    const outputs = (await Promise.all(requests)).flat().filter(Boolean);
 
     res.status(200).json({
-      images: outputs.map((url) => ({
-        url,
-        mediaType: getMediaType(url),
-      })),
+      predictions,
+      images: predictions.flatMap((prediction) => prediction.images),
       model: modelConfig.label,
       provider: "atlas-cloud",
     });
