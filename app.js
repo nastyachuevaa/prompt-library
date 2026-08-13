@@ -59,6 +59,10 @@ const PALETTES = [
   { id: "coral-peach", label: "Коралловый / персик", prompt: "коралловый / персиковый цвет", swatch: "linear-gradient(135deg, #fb7185, #fdba74)" },
 ];
 
+const BUILT_IN_REFERENCES = {
+  liveops: ["assets/ref-camera.png"],
+};
+
 const initialValues = {
   appearance: {
     gender: "adult man",
@@ -102,6 +106,8 @@ const state = {
   isGenerating: false,
   status: "",
 };
+
+const referenceCache = new Map();
 
 const els = {
   taskTabs: document.querySelector("#taskTabs"),
@@ -482,7 +488,7 @@ async function generateImages() {
   const modelKey = getEffectiveModel();
   let inputReferences = state.references[state.activeTask].map((ref) => ref.dataUrl);
   if (state.activeTask === "liveops" && !inputReferences.length) {
-    inputReferences = ["assets/ref-camera.png"];
+    inputReferences = await Promise.all(BUILT_IN_REFERENCES.liveops.map((src) => loadReferenceDataUrl(src)));
   }
   state.isGenerating = true;
   state.results = [];
@@ -594,6 +600,22 @@ async function addReferences(files) {
   refs.push(...nextRefs);
   els.referenceInput.value = "";
   renderReferences();
+}
+
+async function loadReferenceDataUrl(src) {
+  if (!referenceCache.has(src)) {
+    referenceCache.set(
+      src,
+      fetch(src)
+        .then((response) => {
+          if (!response.ok) throw new Error("Reference unavailable");
+          return response.blob();
+        })
+        .then((blob) => fileToDataUrl(blob)),
+    );
+  }
+
+  return referenceCache.get(src);
 }
 
 function switchTask(taskId) {
