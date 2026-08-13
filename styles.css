@@ -37,7 +37,6 @@ body {
 
 button,
 input,
-select,
 textarea {
   font: inherit;
 }
@@ -221,12 +220,6 @@ h3 {
   font-size: 13px;
 }
 
-.primary-button.compact {
-  min-height: 34px;
-  padding: 0 12px;
-  font-size: 13px;
-}
-
 .primary-button {
   padding: 0 18px;
   border-color: transparent;
@@ -347,7 +340,6 @@ legend {
 }
 
 input[type="text"],
-select,
 textarea {
   width: 100%;
   border: 1px solid var(--line);
@@ -360,11 +352,6 @@ textarea {
 input[type="text"] {
   min-height: 52px;
   padding: 0 15px;
-}
-
-select {
-  min-height: 46px;
-  padding: 0 34px 0 12px;
 }
 
 textarea {
@@ -389,7 +376,6 @@ textarea {
 }
 
 input[type="text"]:focus,
-select:focus,
 textarea:focus {
   border-color: rgba(124, 58, 237, 0.65);
   box-shadow: 0 0 0 4px rgba(124, 58, 237, 0.12);
@@ -575,8 +561,7 @@ input[type="number"]:focus {
 }
 
 .result-block,
-.refs-section,
-.image-generator {
+.refs-section {
   display: grid;
   gap: 12px;
 }
@@ -643,93 +628,6 @@ input[type="number"]:focus {
 
 #promptOutput {
   min-height: 230px;
-}
-
-.image-generator {
-  padding-top: 4px;
-}
-
-.image-generator-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.image-controls {
-  display: grid;
-  grid-template-columns: minmax(130px, 1.4fr) repeat(2, minmax(96px, 1fr)) 76px;
-  gap: 10px;
-  align-items: end;
-}
-
-.image-hint {
-  min-height: 18px;
-  margin: 0;
-  color: var(--muted);
-  font-size: 12px;
-  font-weight: 700;
-  line-height: 1.4;
-}
-
-.image-hint.is-error {
-  color: var(--coral);
-}
-
-.image-results {
-  display: grid;
-  gap: 10px;
-}
-
-.image-card,
-.image-empty {
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  background: #ffffff;
-}
-
-.image-card {
-  display: grid;
-  gap: 10px;
-  padding: 10px;
-}
-
-.image-card img {
-  display: block;
-  width: 100%;
-  aspect-ratio: 1;
-  border-radius: var(--radius);
-  object-fit: contain;
-  background: #111113;
-}
-
-.image-card-actions {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.image-card-actions span {
-  overflow: hidden;
-  color: var(--muted);
-  font-size: 12px;
-  font-weight: 800;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.image-card-actions a {
-  display: inline-grid;
-  place-items: center;
-  text-decoration: none;
-}
-
-.image-empty {
-  padding: 16px;
-  color: var(--muted);
-  font-size: 13px;
-  font-weight: 700;
 }
 
 .prompt-cards {
@@ -830,8 +728,7 @@ input[type="number"]:focus {
   .mode-grid,
   .ai-helper-grid,
   .field-row,
-  .compact-row,
-  .image-controls {
+  .compact-row {
     grid-template-columns: 1fr;
   }
 
@@ -853,8 +750,7 @@ input[type="number"]:focus {
   }
 
   .builder-heading,
-  .result-actions,
-  .image-generator-header {
+  .result-actions {
     align-items: flex-start;
     flex-direction: column;
   }
