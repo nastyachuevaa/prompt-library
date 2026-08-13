@@ -223,10 +223,13 @@ function getOutputUrls(prediction) {
   if (Array.isArray(prediction?.output)) outputs.push(...prediction.output);
   if (Array.isArray(prediction?.images)) outputs.push(...prediction.images);
   if (prediction?.output?.image) outputs.push(prediction.output.image);
-  if (prediction?.urls && typeof prediction.urls === "object") outputs.push(...Object.values(prediction.urls).flat());
 
   return outputs
-    .map((item) => (typeof item === "string" ? item : item?.url || item?.download_url || item?.image || ""))
+    .map((item) => {
+      if (typeof item === "string") return item;
+      return item?.url || item?.download_url || item?.image || item?.image_url || item?.output_url || "";
+    })
+    .filter((item) => typeof item === "string")
     .filter(Boolean);
 }
 
