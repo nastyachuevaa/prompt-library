@@ -58,6 +58,8 @@ const POLL_INTERVAL_MS = 3000;
 const GENERATION_TIMEOUT_MS = 300000;
 const COMPLETED_STATUSES = new Set(["completed", "succeeded", "success", "done"]);
 const FAILED_STATUSES = new Set(["failed", "error", "timeout", "canceled", "cancelled"]);
+const HISTORY_STORAGE_KEY = "prompt-studio-image-history-v1";
+const MAX_HISTORY_ITEMS = 80;
 
 const PALETTES = [
   { id: "purple-pink", label: "Фиолетовый / розовый", prompt: "фиолетовый / розовый цвет", swatch: "linear-gradient(135deg, #7c3aed, #ec4899)" },
@@ -94,6 +96,49 @@ const initialValues = {
   },
 };
 
+function createEmptyHistories() {
+  return Object.fromEntries(TASKS.map((task) => [task.id, []]));
+}
+
+function normalizeSavedImage(image) {
+  if (!image || typeof image.url !== "string" || !image.url) return null;
+
+  return {
+    url: image.url,
+    mediaType: typeof image.mediaType === "string" ? image.mediaType : "image/png",
+    modelLabel: typeof image.modelLabel === "string" ? image.modelLabel : "Image",
+    taskId: typeof image.taskId === "string" ? image.taskId : "",
+    createdAt: typeof image.createdAt === "string" ? image.createdAt : "",
+  };
+}
+
+function loadSavedHistories() {
+  const histories = createEmptyHistories();
+
+  try {
+    const saved = JSON.parse(localStorage.getItem(HISTORY_STORAGE_KEY) || "{}");
+    TASKS.forEach((task) => {
+      histories[task.id] = Array.isArray(saved[task.id])
+        ? saved[task.id].map(normalizeSavedImage).filter(Boolean).slice(0, MAX_HISTORY_ITEMS)
+        : [];
+    });
+  } catch {
+    return histories;
+  }
+
+  return histories;
+}
+
+function saveHistories(histories) {
+  try {
+    localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(histories));
+  } catch {
+    // History is a convenience layer; generation should keep working even if storage is full.
+  }
+}
+
+const savedHistories = loadSavedHistories();
+
 const state = {
   activeTask: "appearance",
   values: structuredClone(initialValues),
@@ -109,8 +154,11 @@ const state = {
     ]),
   ),
   references: Object.fromEntries(TASKS.map((task) => [task.id, []])),
-  results: [],
+  histories: savedHistories,
+  results: savedHistories.appearance || [],
   isGenerating: false,
+  generatingTaskId: "",
+  pendingCount: 0,
   status: "",
 };
 
@@ -358,13 +406,19 @@ function renderPromptPreview() {
 }
 
 function renderResults() {
-  if (state.isGenerating) {
-    const remainingCount = Math.max(getSettings().count - state.results.length, 1);
-    els.resultsGrid.innerHTML = `${renderResultCards()}${Array.from({ length: remainingCount }, () => '<div class="result-card loading-card"></div>').join("")}`;
+  const results = getActiveResults();
+  const isActiveTaskGenerating = state.isGenerating && state.generatingTaskId === state.activeTask;
+
+  if (isActiveTaskGenerating) {
+    const loadingCards = Array.from(
+      { length: Math.max(state.pendingCount, 1) },
+      () => '<div class="result-card loading-card"></div>',
+    ).join("");
+    els.resultsGrid.innerHTML = `${renderResultCards(results)}${loadingCards}`;
     return;
   }
 
-  if (!state.results.length) {
+  if (!results.length) {
     els.resultsGrid.innerHTML = `
       <div class="empty-results">
         <span>Ready</span>
@@ -373,26 +427,30 @@ function renderResults() {
     return;
   }
 
-  els.resultsGrid.innerHTML = renderResultCards();
+  els.resultsGrid.innerHTML = renderResultCards(results);
 }
 
-function renderResultCards() {
-  return state.results
+function renderResultCards(results = getActiveResults()) {
+  return results
     .map(
       (image, index) => `
         <article class="result-card">
-          <img src="${image.url}" alt="Generated image ${index + 1}" />
+          <img src="${escapeHTML(image.url)}" alt="Generated image ${index + 1}" />
           <div class="result-actions">
             <span>${escapeHTML(image.modelLabel || "Image")}</span>
             <div>
               <button class="ghost-button compact" type="button" data-copy-image="${index}">Copy</button>
-              <a class="ghost-button compact" href="${image.url}" download="prompt-studio-${index + 1}.png">Download</a>
+              <a class="ghost-button compact" href="${escapeHTML(image.url)}" download="prompt-studio-${index + 1}.png">Download</a>
             </div>
           </div>
         </article>
       `,
     )
     .join("");
+}
+
+function getActiveResults() {
+  return state.histories[state.activeTask] || [];
 }
 
 function renderAll() {
@@ -509,8 +567,10 @@ async function generateImages() {
   if (state.activeTask === "liveops" && !inputReferences.length) {
     inputReferences = await Promise.all(BUILT_IN_REFERENCES.liveops.map((src) => loadReferenceDataUrl(src)));
   }
+  const taskId = state.activeTask;
   state.isGenerating = true;
-  state.results = [];
+  state.generatingTaskId = taskId;
+  state.pendingCount = settings.count;
   setStatus("Generating...", true);
   renderResults();
 
@@ -535,7 +595,7 @@ async function generateImages() {
     }
 
     const modelLabel = MODELS[modelKey]?.label || "Image";
-    state.results = (data.images || []).map((image) => ({ ...image, modelLabel }));
+    addGeneratedImages(data.images, modelLabel, taskId);
     renderResults();
 
     const pendingIds = (data.predictions || [])
@@ -544,18 +604,21 @@ async function generateImages() {
       .filter(Boolean);
 
     if (pendingIds.length) {
-      await pollImageJobs({ endpoint, modelKey, modelLabel, pendingIds });
+      state.pendingCount = pendingIds.length;
+      await pollImageJobs({ endpoint, modelKey, modelLabel, pendingIds, taskId });
     } else {
-      setStatus(state.results.length ? `Ready: ${state.results.length}` : "No image returned");
+      state.pendingCount = 0;
+      setStatus(state.histories[taskId].length ? `Ready: ${state.histories[taskId].length}` : "No image returned");
     }
   } catch (error) {
-    state.results = [];
     const message = error.message?.includes("Atlas Cloud key")
       ? "Добавьте Atlas Cloud API key в Vercel"
       : error.message || "Не удалось сгенерировать";
     setStatus(message, true);
   } finally {
     state.isGenerating = false;
+    state.generatingTaskId = "";
+    state.pendingCount = 0;
     renderResults();
   }
 }
@@ -566,16 +629,28 @@ function wait(ms) {
   });
 }
 
-function addGeneratedImages(images, modelLabel) {
-  const existingUrls = new Set(state.results.map((image) => image.url));
+function addGeneratedImages(images, modelLabel, taskId = state.activeTask) {
+  const results = state.histories[taskId] || [];
+  const existingUrls = new Set(results.map((image) => image.url));
   const nextImages = (images || [])
     .filter((image) => image?.url && !existingUrls.has(image.url))
-    .map((image) => ({ ...image, modelLabel }));
+    .map((image) => ({
+      ...image,
+      modelLabel,
+      taskId,
+      createdAt: new Date().toISOString(),
+    }));
 
-  state.results.push(...nextImages);
+  if (!nextImages.length) return;
+
+  state.histories[taskId] = [...nextImages, ...results].slice(0, MAX_HISTORY_ITEMS);
+  if (taskId === state.activeTask) {
+    state.results = state.histories[taskId];
+  }
+  saveHistories(state.histories);
 }
 
-async function pollImageJobs({ endpoint, modelKey, modelLabel, pendingIds }) {
+async function pollImageJobs({ endpoint, modelKey, modelLabel, pendingIds, taskId }) {
   const startedAt = Date.now();
   let remainingIds = pendingIds;
 
@@ -605,16 +680,17 @@ async function pollImageJobs({ endpoint, modelKey, modelLabel, pendingIds }) {
       throw new Error(failed.error || "Atlas Cloud generation failed");
     }
 
-    addGeneratedImages(data.images, modelLabel);
+    addGeneratedImages(data.images, modelLabel, taskId);
     remainingIds = predictions
       .filter((prediction) => !COMPLETED_STATUSES.has(prediction.status))
       .map((prediction) => prediction.id)
       .filter(Boolean);
+    state.pendingCount = remainingIds.length;
 
     setStatus(
       remainingIds.length
-        ? `Atlas Cloud: готово ${state.results.length}, ждем ${remainingIds.length}`
-        : `Ready: ${state.results.length}`,
+        ? `Atlas Cloud: готово ${state.histories[taskId].length}, ждем ${remainingIds.length}`
+        : `Ready: ${state.histories[taskId].length}`,
       true,
     );
     renderResults();
@@ -660,7 +736,7 @@ function dataUrlToBlob(dataUrl) {
 }
 
 async function copyImage(index) {
-  const image = state.results[index];
+  const image = getActiveResults()[index];
   if (!image) return;
 
   try {
@@ -724,7 +800,7 @@ async function loadReferenceDataUrl(src) {
 function switchTask(taskId) {
   if (!TASKS.some((task) => task.id === taskId)) return;
   state.activeTask = taskId;
-  state.results = [];
+  state.results = state.histories[taskId] || [];
   setStatus("");
   renderAll();
 }
@@ -739,7 +815,6 @@ function resetTask() {
     count: task.defaultCount,
   };
   state.references[task.id] = [];
-  state.results = [];
   setStatus("");
   renderAll();
 }
@@ -815,7 +890,9 @@ function bindEvents() {
   });
   els.generateButton.addEventListener("click", generateImages);
   els.clearResultsButton.addEventListener("click", () => {
-    state.results = [];
+    state.histories[state.activeTask] = [];
+    state.results = state.histories[state.activeTask];
+    saveHistories(state.histories);
     renderResults();
   });
   els.referenceList.addEventListener("click", (event) => {
