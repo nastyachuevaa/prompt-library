@@ -3,6 +3,12 @@ const SEEDREAM_PREFIX =
 
 const CHARACTER_PREFIX = "A realistic front-facing iPhone photo of";
 const CHARACTER_SUFFIX = "Plain gray studio wall background, natural indoor phone lighting, raw realistic iPhone photo";
+const AUTO_IMAGE_PROVIDERS = {
+  "seedream-realism": "seedream",
+  "button-icon": "nano-banana",
+  "character-appearance": "nano-banana",
+  "avatar-portrait": "nano-banana",
+};
 
 const topics = [
   {
@@ -102,6 +108,14 @@ const formState = {
 };
 
 const referencePayloads = new Map();
+const imageState = {
+  images: [],
+  isLoading: false,
+  error: "",
+  provider: "auto",
+  model: "",
+  promptSource: "",
+};
 let activeTopicId = "character-appearance";
 
 const els = {
@@ -117,6 +131,13 @@ const els = {
   refsSection: document.querySelector("#refsSection"),
   refsGrid: document.querySelector("#refsGrid"),
   statusText: document.querySelector("#statusText"),
+  imageGenerateButton: document.querySelector("#imageGenerateButton"),
+  imageProviderSelect: document.querySelector("#imageProviderSelect"),
+  imageAspectSelect: document.querySelector("#imageAspectSelect"),
+  imageResolutionSelect: document.querySelector("#imageResolutionSelect"),
+  imageCountInput: document.querySelector("#imageCountInput"),
+  imageHint: document.querySelector("#imageHint"),
+  imageResults: document.querySelector("#imageResults"),
 };
 
 function escapeHTML(value) {
@@ -850,6 +871,13 @@ function getCardResults() {
   return [];
 }
 
+function clearImageResults() {
+  imageState.images = [];
+  imageState.error = "";
+  imageState.model = "";
+  imageState.promptSource = "";
+}
+
 function clearGrokResults() {
   formState["seedream-realism"].grokResults = [];
   formState["seedream-realism"].grokRawText = "";
@@ -869,6 +897,26 @@ function getGenerateEndpoint() {
   }
 
   return "";
+}
+
+function getImageEndpoint() {
+  const savedEndpoint = localStorage.getItem("prompt-library.imageEndpoint") || "";
+  if (savedEndpoint) return savedEndpoint;
+
+  if (location.hostname === "localhost" || location.hostname === "127.0.0.1" || location.hostname.endsWith(".vercel.app")) {
+    return "/api/image";
+  }
+
+  return "";
+}
+
+function getDefaultImageProvider() {
+  return AUTO_IMAGE_PROVIDERS[activeTopicId] || "nano-banana";
+}
+
+function getSelectedImageProvider() {
+  const selectedProvider = els.imageProviderSelect.value || "auto";
+  return selectedProvider === "auto" ? getDefaultImageProvider() : selectedProvider;
 }
 
 function updateAccentColor() {
@@ -935,6 +983,7 @@ function renderPromptCards(prompts) {
           <header class="prompt-card-header">
             <span class="prompt-number">${String(index + 1).padStart(2, "0")}</span>
             <div class="prompt-card-actions">
+              <button class="primary-button compact" type="button" data-generate-result="${index}">Сгенерировать</button>
               <button class="ghost-button compact" type="button" data-copy-result="${index}">Копировать</button>
             </div>
           </header>
@@ -978,6 +1027,55 @@ function renderCharacterOutput() {
   renderPromptCards(prompts);
 }
 
+function getImageProviderLabel(provider) {
+  return provider === "seedream" ? "SeeDream" : "Nano Banana";
+}
+
+function getImagePromptSource() {
+  const cardResults = getCardResults();
+  if (cardResults.length) {
+    return {
+      prompt: cardResults[0],
+      source: cardResults.length === 1 ? "готового варианта" : "первого готового варианта",
+    };
+  }
+
+  return {
+    prompt: els.promptOutput.value.trim(),
+    source: "готового промпта",
+  };
+}
+
+function renderImageGenerator() {
+  const provider = getSelectedImageProvider();
+  const providerLabel = getImageProviderLabel(provider);
+  const { source } = getImagePromptSource();
+
+  els.imageHint.textContent = imageState.error || `Будет использовать ${providerLabel} и текст из ${source}.`;
+  els.imageHint.classList.toggle("is-error", Boolean(imageState.error));
+  els.imageGenerateButton.disabled = imageState.isLoading;
+  els.imageGenerateButton.textContent = imageState.isLoading ? "Генерирую..." : "Сгенерировать";
+
+  if (!imageState.images.length) {
+    els.imageResults.innerHTML = '<div class="image-empty">Здесь появятся готовые изображения</div>';
+    return;
+  }
+
+  els.imageResults.innerHTML = imageState.images
+    .map(
+      (image, index) => `
+        <article class="image-card">
+          <img src="${image.url}" alt="Сгенерированное изображение ${index + 1}" />
+          <div class="image-card-actions">
+            <span>${imageState.model || providerLabel}</span>
+            <a class="ghost-button compact" href="${image.url}" download="prompt-library-${index + 1}.png">Скачать</a>
+          </div>
+        </article>
+      `,
+    )
+    .join("");
+}
+
 function updatePrompt() {
   syncStateFromForm();
 
@@ -990,6 +1088,7 @@ function updatePrompt() {
   }
 
   updateAccentColor();
+  renderImageGenerator();
 }
 
 function copyTextFallback(text) {
@@ -1059,6 +1158,7 @@ async function generateWithGrok() {
       button.textContent = "Генерирую...";
     }
     clearGrokResults();
+    clearImageResults();
     renderGrokOutput();
     setStatus("Генерирую...");
 
@@ -1110,6 +1210,7 @@ async function generateCharacterVariants() {
       button.textContent = "Генерирую...";
     }
     clearCharacterResults();
+    clearImageResults();
     renderCharacterOutput();
     setStatus("Генерирую...");
 
@@ -1158,6 +1259,72 @@ function getCurrentOutputText() {
   }
 
   return els.promptOutput.value;
+}
+
+function getImageRequestPrompt(customPrompt = "") {
+  const prompt = customPrompt || getImagePromptSource().prompt;
+  return prompt.trim();
+}
+
+function clampImageCount(value) {
+  return Math.min(Math.max(Number(value) || 1, 1), 4);
+}
+
+async function generateImage(customPrompt = "") {
+  syncStateFromForm();
+
+  const endpoint = getImageEndpoint();
+  if (!endpoint) {
+    imageState.error = "Генерация работает на Vercel-версии сайта";
+    renderImageGenerator();
+    return;
+  }
+
+  const prompt = getImageRequestPrompt(customPrompt);
+  if (!prompt) {
+    imageState.error = "Сначала нужен готовый промпт";
+    renderImageGenerator();
+    return;
+  }
+
+  const provider = getSelectedImageProvider();
+  imageState.isLoading = true;
+  imageState.error = "";
+  imageState.provider = provider;
+  imageState.promptSource = customPrompt ? "отдельного варианта" : getImagePromptSource().source;
+  renderImageGenerator();
+
+  try {
+    const response = await fetch(endpoint, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        provider,
+        prompt,
+        aspectRatio: els.imageAspectSelect.value || "1:1",
+        resolution: els.imageResolutionSelect.value || "1K",
+        count: clampImageCount(els.imageCountInput.value),
+      }),
+    });
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data?.error || "Image generation failed");
+    }
+
+    imageState.images = data.images || [];
+    imageState.model = data.model || getImageProviderLabel(provider);
+    imageState.error = imageState.images.length ? "" : "Модель не вернула изображение";
+  } catch {
+    imageState.images = [];
+    imageState.model = "";
+    imageState.error = "Не удалось сгенерировать изображение";
+  } finally {
+    imageState.isLoading = false;
+    renderImageGenerator();
+  }
 }
 
 function resetForm() {
@@ -1210,6 +1377,7 @@ function switchTopic(topicId) {
 
   syncStateFromForm();
   activeTopicId = topic.id;
+  clearImageResults();
   renderActiveTopic();
 }
 
@@ -1286,6 +1454,7 @@ function handleFormInput(event) {
     clearCharacterResults();
   }
 
+  clearImageResults();
   updatePrompt();
 }
 
@@ -1298,6 +1467,17 @@ function bindEvents() {
   els.promptForm.addEventListener("input", handleFormInput);
   els.promptForm.addEventListener("change", handleFormInput);
   els.copyButton.addEventListener("click", () => copyText(getCurrentOutputText()));
+  els.imageGenerateButton.addEventListener("click", () => generateImage());
+  [els.imageProviderSelect, els.imageAspectSelect, els.imageResolutionSelect, els.imageCountInput].forEach((control) => {
+    control.addEventListener("change", () => {
+      clearImageResults();
+      renderImageGenerator();
+    });
+  });
+  els.imageCountInput.addEventListener("input", () => {
+    clearImageResults();
+    renderImageGenerator();
+  });
   els.resetButton.addEventListener("click", resetForm);
   els.refsGrid.addEventListener("click", (event) => {
     const copyButton = event.target.closest("[data-copy-ref]");
@@ -1316,12 +1496,18 @@ function bindEvents() {
   });
   els.promptCards.addEventListener("click", (event) => {
     const copyButton = event.target.closest("[data-copy-result]");
-    const index = Number(copyButton?.dataset.copyResult);
+    const generateButton = event.target.closest("[data-generate-result]");
+    const index = Number(copyButton?.dataset.copyResult ?? generateButton?.dataset.generateResult);
     const prompt = getCardResults()[index];
     if (!prompt) return;
 
     if (copyButton) {
       copyText(prompt);
+      return;
+    }
+
+    if (generateButton) {
+      generateImage(prompt);
     }
   });
 }

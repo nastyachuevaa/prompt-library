@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Библиотека промптов</title>
-    <link rel="stylesheet" href="styles.css?v=avatar-tab-1" />
+    <link rel="stylesheet" href="styles.css?v=image-gen-1" />
   </head>
   <body>
     <main class="app-shell" aria-label="Библиотека промптов">
@@ -53,9 +53,61 @@
             <p class="status-text" id="statusText" aria-live="polite"></p>
           </div>
         </div>
+
+        <section class="image-generator" aria-labelledby="imageGeneratorTitle">
+          <div class="image-generator-header">
+            <h2 id="imageGeneratorTitle">Генерация изображения</h2>
+            <button class="primary-button" type="button" id="imageGenerateButton">
+              Сгенерировать
+            </button>
+          </div>
+
+          <div class="image-controls">
+            <label class="field">
+              <span>Модель</span>
+              <select id="imageProviderSelect" aria-label="Модель генерации">
+                <option value="auto">Авто</option>
+                <option value="nano-banana">Nano Banana</option>
+                <option value="seedream">SeeDream</option>
+              </select>
+            </label>
+            <label class="field">
+              <span>Формат</span>
+              <select id="imageAspectSelect" aria-label="Формат изображения">
+                <option value="1:1">1:1</option>
+                <option value="4:5">4:5</option>
+                <option value="3:4">3:4</option>
+                <option value="9:16">9:16</option>
+                <option value="16:9">16:9</option>
+              </select>
+            </label>
+            <label class="field">
+              <span>Размер</span>
+              <select id="imageResolutionSelect" aria-label="Размер изображения">
+                <option value="1K">1K</option>
+                <option value="2K">2K</option>
+                <option value="4K">4K</option>
+              </select>
+            </label>
+            <label class="field">
+              <span>Штук</span>
+              <input
+                id="imageCountInput"
+                type="number"
+                min="1"
+                max="4"
+                value="1"
+                aria-label="Количество изображений"
+              />
+            </label>
+          </div>
+
+          <p class="image-hint" id="imageHint"></p>
+          <div class="image-results" id="imageResults"></div>
+        </section>
       </section>
     </main>
 
-    <script src="app.js?v=avatar-tab-1" defer></script>
+    <script src="app.js?v=image-gen-1" defer></script>
   </body>
 </html>
