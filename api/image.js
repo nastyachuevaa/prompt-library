@@ -4,16 +4,27 @@ const allowedOrigins = new Set([
   "http://localhost:4173",
 ]);
 
-const modelMap = {
-  "nano-banana-2": process.env.NANO_BANANA_IMAGE_MODEL || "google/gemini-3.1-flash-image",
-  "nano-banana": process.env.NANO_BANANA_LEGACY_IMAGE_MODEL || "google/gemini-2.5-flash-image",
-  seedream: process.env.SEEDREAM_IMAGE_MODEL || "bytedance-seed/seedream-4.5",
-};
+const ATLAS_BASE_URL = "https://api.atlascloud.ai/api/v1/model";
 
-const providerMap = {
-  "nano-banana-2": "nano-banana",
-  "nano-banana": "nano-banana",
-  seedream: "seedream",
+const atlasModels = {
+  "nano-banana-pro": {
+    label: "Nano Banana Pro",
+    textModel: "google/nano-banana-pro/text-to-image",
+    editModel: "google/nano-banana-pro/edit",
+    kind: "nano",
+  },
+  "seedream-4.5": {
+    label: "SeeDream 4.5",
+    textModel: "bytedance/seedream-v4.5",
+    editModel: "bytedance/seedream-v4.5/edit",
+    kind: "seedream",
+  },
+  "gpt-image-2": {
+    label: "GPT Image 2",
+    textModel: "openai/gpt-image-2/text-to-image",
+    editModel: "openai/gpt-image-2/edit",
+    kind: "gpt",
+  },
 };
 
 const allowedAspectRatios = new Set(["1:1", "3:4", "4:5", "9:16", "16:9"]);
@@ -34,16 +45,8 @@ function clampInt(value, min, max, fallback) {
   return Math.min(Math.max(Math.floor(parsed), min), max);
 }
 
-function makeImageUrl(image) {
-  if (image?.url) return image.url;
-  if (!image?.b64_json) return "";
-
-  const mediaType = image.media_type || image.mime_type || "image/png";
-  return `data:${mediaType};base64,${image.b64_json}`;
-}
-
-function getModelKey(value) {
-  return modelMap[value] ? value : "nano-banana-2";
+function getModelConfig(modelKey) {
+  return atlasModels[modelKey] || atlasModels["nano-banana-pro"];
 }
 
 function getAspectRatio(value) {
@@ -54,40 +57,212 @@ function getResolution(value) {
   return allowedResolutions.has(value) ? value : "1K";
 }
 
-function buildReferencePayload(inputReferences) {
-  if (!Array.isArray(inputReferences)) return [];
-
-  return inputReferences
-    .filter((item) => typeof item === "string" && (item.startsWith("data:image/") || item.startsWith("http") || item.startsWith("assets/")))
-    .slice(0, 6)
-    .map((url) => ({
-      type: "image_url",
-      image_url: {
-        url: url.startsWith("assets/") ? `https://prompt-library-git-draft-site-nastyachuevaas-projects.vercel.app/${url}` : url,
-      },
-    }));
+function sleep(ms) {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
 }
 
-async function requestOpenRouterImage(apiKey, payload) {
-  const response = await fetch("https://openrouter.ai/api/v1/images", {
+function parseDataUrl(dataUrl) {
+  const match = String(dataUrl).match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/);
+  if (!match) return null;
+
+  return {
+    mimeType: match[1],
+    bytes: Buffer.from(match[2], "base64"),
+  };
+}
+
+async function uploadReference(apiKey, dataUrl, index) {
+  if (typeof dataUrl === "string" && /^https?:\/\//.test(dataUrl)) {
+    return dataUrl;
+  }
+
+  const parsed = parseDataUrl(dataUrl);
+  if (!parsed) return "";
+
+  const extension = parsed.mimeType.includes("jpeg") ? "jpg" : parsed.mimeType.split("/")[1] || "png";
+  const form = new FormData();
+  form.append("file", new Blob([parsed.bytes], { type: parsed.mimeType }), `reference-${index + 1}.${extension}`);
+
+  const response = await fetch(`${ATLAS_BASE_URL}/uploadMedia`, {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${apiKey}`,
+    },
+    body: form,
+  });
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data?.error || data?.message || "Atlas Cloud upload failed");
+  }
+
+  return data?.url || data?.data?.url || data?.data?.download_url || "";
+}
+
+function makeGptSize(aspectRatio, resolution) {
+  const tier = resolution.toLowerCase();
+  const sizes = {
+    "1K": {
+      "1:1": "1024x1024",
+      "3:4": "768x1024",
+      "4:5": "1024x1536",
+      "9:16": "1024x1536",
+      "16:9": "1536x1024",
+    },
+    "2K": {
+      "1:1": "2048x2048",
+      "3:4": "2160x2880",
+      "4:5": "2160x2880",
+      "9:16": "1152x2048",
+      "16:9": "2048x1152",
+    },
+    "4K": {
+      "1:1": "2048x2048",
+      "3:4": "2160x2880",
+      "4:5": "2160x2880",
+      "9:16": "2160x3840",
+      "16:9": "3840x2160",
+    },
+  };
+
+  return sizes[resolution]?.[aspectRatio] || (tier === "1k" ? "1024x1024" : "2048x2048");
+}
+
+function makeSeedreamSize(aspectRatio, resolution) {
+  const normalizedResolution = resolution === "1K" ? "2K" : resolution;
+  const sizes = {
+    "2K": {
+      "1:1": "2048*2048",
+      "3:4": "1728*2304",
+      "4:5": "1664*2496",
+      "9:16": "1600*2848",
+      "16:9": "2848*1600",
+    },
+    "4K": {
+      "1:1": "4096*4096",
+      "3:4": "3520*4704",
+      "4:5": "3328*4992",
+      "9:16": "3040*5504",
+      "16:9": "5504*3040",
+    },
+  };
+
+  return sizes[normalizedResolution]?.[aspectRatio] || "2048*2048";
+}
+
+function buildAtlasPayload({ modelConfig, prompt, aspectRatio, resolution, uploadedReferences }) {
+  const hasReferences = uploadedReferences.length > 0 && modelConfig.editModel;
+  const model = hasReferences ? modelConfig.editModel : modelConfig.textModel;
+  const payload = {
+    model,
+    prompt,
+    enable_base64_output: false,
+    enable_sync_mode: false,
+  };
+
+  if (hasReferences) {
+    payload.images = uploadedReferences;
+  }
+
+  if (modelConfig.kind === "gpt") {
+    payload.size = makeGptSize(aspectRatio, resolution);
+    payload.quality = "medium";
+    payload.output_format = "jpeg";
+    payload.moderation = "low";
+    return payload;
+  }
+
+  if (modelConfig.kind === "seedream") {
+    payload.size = makeSeedreamSize(aspectRatio, resolution);
+    return payload;
+  }
+
+  payload.aspect_ratio = aspectRatio;
+  payload.resolution = resolution.toLowerCase();
+  payload.output_format = "png";
+  payload.media_resolution = "default";
+  payload.enable_web_search = false;
+  return payload;
+}
+
+async function submitAtlasGeneration(apiKey, payload) {
+  const response = await fetch(`${ATLAS_BASE_URL}/generateImage`, {
     method: "POST",
     headers: {
       "Authorization": `Bearer ${apiKey}`,
       "Content-Type": "application/json",
-      "HTTP-Referer": "https://prompt-library-git-draft-site-nastyachuevaas-projects.vercel.app/",
-      "X-Title": "Prompt Studio Draft",
     },
     body: JSON.stringify(payload),
   });
-
   const data = await response.json();
+
   if (!response.ok) {
-    const error = new Error(data?.error?.message || "OpenRouter image request failed");
-    error.status = response.status;
-    throw error;
+    throw new Error(data?.error || data?.message || data?.data?.error || "Atlas Cloud generation failed");
   }
 
-  return data;
+  const prediction = data?.data || data;
+  return prediction;
+}
+
+async function pollAtlasPrediction(apiKey, predictionId) {
+  const startedAt = Date.now();
+  const maxWaitMs = 55000;
+
+  while (Date.now() - startedAt < maxWaitMs) {
+    const response = await fetch(`${ATLAS_BASE_URL}/prediction/${predictionId}`, {
+      headers: {
+        "Authorization": `Bearer ${apiKey}`,
+      },
+    });
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data?.error || data?.message || "Atlas Cloud polling failed");
+    }
+
+    const prediction = data?.data || data;
+    if (["completed", "succeeded"].includes(prediction?.status)) {
+      return prediction;
+    }
+
+    if (["failed", "error", "timeout"].includes(prediction?.status)) {
+      throw new Error(prediction?.error || "Atlas Cloud generation failed");
+    }
+
+    await sleep(2500);
+  }
+
+  throw new Error("Atlas Cloud generation is still processing");
+}
+
+function getOutputUrls(prediction) {
+  const outputs = [];
+  if (Array.isArray(prediction?.outputs)) outputs.push(...prediction.outputs);
+  if (Array.isArray(prediction?.output)) outputs.push(...prediction.output);
+  if (Array.isArray(prediction?.images)) outputs.push(...prediction.images);
+  if (prediction?.output?.image) outputs.push(prediction.output.image);
+  if (prediction?.urls && typeof prediction.urls === "object") outputs.push(...Object.values(prediction.urls).flat());
+
+  return outputs
+    .map((item) => (typeof item === "string" ? item : item?.url || item?.download_url || item?.image || ""))
+    .filter(Boolean);
+}
+
+function getPredictionId(prediction) {
+  return prediction?.id || prediction?.prediction_id || prediction?.predictionId || prediction?.request_id || "";
+}
+
+function isPredictionComplete(prediction) {
+  return ["completed", "succeeded"].includes(prediction?.status) && getOutputUrls(prediction).length > 0;
+}
+
+function getMediaType(url) {
+  const cleanUrl = String(url).split("?")[0].toLowerCase();
+  if (cleanUrl.endsWith(".jpg") || cleanUrl.endsWith(".jpeg")) return "image/jpeg";
+  if (cleanUrl.endsWith(".webp")) return "image/webp";
+  return "image/png";
 }
 
 module.exports = async function handler(req, res) {
@@ -103,9 +278,9 @@ module.exports = async function handler(req, res) {
     return;
   }
 
-  const apiKey = process.env.OPENROUTER_API_KEY;
+  const apiKey = process.env.ATLASCLOUD_API_KEY;
   if (!apiKey) {
-    res.status(500).json({ error: "OpenRouter key is not configured" });
+    res.status(500).json({ error: "Atlas Cloud key is not configured" });
     return;
   }
 
@@ -115,46 +290,44 @@ module.exports = async function handler(req, res) {
     return;
   }
 
-  const modelKey = getModelKey(req.body?.modelKey);
-  const provider = providerMap[modelKey];
-  const model = modelMap[modelKey];
+  const modelConfig = getModelConfig(req.body?.modelKey);
   const count = clampInt(req.body?.count, 1, 4, 1);
   const aspectRatio = getAspectRatio(req.body?.aspectRatio);
   const resolution = getResolution(req.body?.resolution);
-  const inputReferences = buildReferencePayload(req.body?.inputReferences);
+  const inputReferences = Array.isArray(req.body?.inputReferences) ? req.body.inputReferences.slice(0, 10) : [];
 
   try {
-    const basePayload = {
-      model,
-      prompt,
-      aspect_ratio: aspectRatio,
-      resolution,
-    };
-
-    if (inputReferences.length) {
-      basePayload.input_references = inputReferences;
-    }
-
-    const requests =
-      provider === "seedream"
-        ? [requestOpenRouterImage(apiKey, { ...basePayload, n: count })]
-        : Array.from({ length: count }, () => requestOpenRouterImage(apiKey, { ...basePayload, n: 1 }));
-    const responses = await Promise.all(requests);
-    const imageItems = responses.flatMap((data) => data?.data || []);
-    const images = imageItems
-      .map((image) => ({
-        url: makeImageUrl(image),
-        mediaType: image?.media_type || image?.mime_type || "image/png",
-      }))
-      .filter((image) => image.url);
+    const uploadedReferences = (
+      await Promise.all(inputReferences.map((reference, index) => uploadReference(apiKey, reference, index)))
+    ).filter(Boolean);
+    const requests = Array.from({ length: count }, async () => {
+      const payload = buildAtlasPayload({
+        modelConfig,
+        prompt,
+        aspectRatio,
+        resolution,
+        uploadedReferences,
+      });
+      const submitted = await submitAtlasGeneration(apiKey, payload);
+      const predictionId = getPredictionId(submitted);
+      if (!predictionId && !isPredictionComplete(submitted)) {
+        throw new Error("Atlas Cloud did not return a prediction id");
+      }
+      const completed = isPredictionComplete(submitted) ? submitted : await pollAtlasPrediction(apiKey, predictionId);
+      return getOutputUrls(completed);
+    });
+    const outputs = (await Promise.all(requests)).flat().filter(Boolean);
 
     res.status(200).json({
-      images,
-      model: responses[0]?.model || model,
-      provider,
+      images: outputs.map((url) => ({
+        url,
+        mediaType: getMediaType(url),
+      })),
+      model: modelConfig.label,
+      provider: "atlas-cloud",
     });
   } catch (error) {
-    res.status(error.status || 500).json({
+    res.status(500).json({
       error: error.message || "Could not generate image",
     });
   }

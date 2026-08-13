@@ -4,18 +4,18 @@ const SEEDREAM_PREFIX =
 const CHARACTER_SUFFIX = "Plain gray studio wall background, natural indoor phone lighting, raw realistic iPhone photo";
 
 const MODELS = {
-  auto: { label: "Auto", provider: "auto" },
-  "nano-banana-2": { label: "Nano Banana 2", provider: "nano-banana" },
-  "nano-banana": { label: "Nano Banana", provider: "nano-banana" },
-  seedream: { label: "SeeDream 4.5", provider: "seedream" },
+  "nano-banana-pro": { label: "Nano Banana Pro", resolutions: ["1K", "2K", "4K"] },
+  "seedream-4.5": { label: "SeeDream 4.5", resolutions: ["2K", "4K"] },
+  "gpt-image-2": { label: "GPT Image 2", resolutions: ["1K", "2K", "4K"] },
 };
 
 const TASKS = [
   {
     id: "appearance",
     title: "NB Appearance Options",
-    modelLabel: "Nano Banana",
-    defaultModel: "nano-banana-2",
+    modelLabel: "Nano Banana Pro",
+    defaultModel: "nano-banana-pro",
+    modelOptions: ["nano-banana-pro"],
     defaultAspect: "3:4",
     defaultResolution: "1K",
     defaultCount: 2,
@@ -23,17 +23,19 @@ const TASKS = [
   {
     id: "seedream",
     title: "OF style SeeDream",
-    modelLabel: "SeeDream",
-    defaultModel: "seedream",
+    modelLabel: "SeeDream / Nano / GPT",
+    defaultModel: "seedream-4.5",
+    modelOptions: ["seedream-4.5", "nano-banana-pro", "gpt-image-2"],
     defaultAspect: "9:16",
-    defaultResolution: "1K",
+    defaultResolution: "2K",
     defaultCount: 2,
   },
   {
     id: "liveops",
     title: "LiveOps button",
-    modelLabel: "Nano Banana",
-    defaultModel: "nano-banana-2",
+    modelLabel: "Nano Banana Pro",
+    defaultModel: "nano-banana-pro",
+    modelOptions: ["nano-banana-pro"],
     defaultAspect: "1:1",
     defaultResolution: "1K",
     defaultCount: 4,
@@ -41,8 +43,9 @@ const TASKS = [
   {
     id: "avatars",
     title: "Avatars",
-    modelLabel: "Nano Banana",
-    defaultModel: "nano-banana-2",
+    modelLabel: "Nano / GPT",
+    defaultModel: "nano-banana-pro",
+    modelOptions: ["nano-banana-pro", "gpt-image-2"],
     defaultAspect: "3:4",
     defaultResolution: "1K",
     defaultCount: 2,
@@ -94,7 +97,7 @@ const state = {
     TASKS.map((task) => [
       task.id,
       {
-        model: "auto",
+        model: task.defaultModel,
         aspect: task.defaultAspect,
         resolution: task.defaultResolution,
         count: task.defaultCount,
@@ -149,7 +152,7 @@ function getSettings() {
 function getEffectiveModel() {
   const task = getTask();
   const selected = getSettings().model;
-  return selected === "auto" ? task.defaultModel : selected;
+  return task.modelOptions.includes(selected) ? selected : task.defaultModel;
 }
 
 function setStatus(message, persist = false) {
@@ -291,13 +294,20 @@ function renderForm() {
 function renderSettings() {
   const task = getTask();
   const settings = getSettings();
+  const modelKey = getEffectiveModel();
+  const resolutionOptions = MODELS[modelKey]?.resolutions || RESOLUTIONS;
+
+  if (!resolutionOptions.includes(settings.resolution)) {
+    settings.resolution = resolutionOptions[0];
+  }
 
   els.modelSelect.innerHTML = Object.entries(MODELS)
+    .filter(([id]) => task.modelOptions.includes(id))
     .map(([id, model]) => {
-      const label = id === "auto" ? `Auto (${MODELS[task.defaultModel].label})` : model.label;
-      return `<option value="${id}" ${settings.model === id ? "selected" : ""}>${label}</option>`;
+      return `<option value="${id}" ${getEffectiveModel() === id ? "selected" : ""}>${model.label}</option>`;
     })
     .join("");
+  els.modelSelect.disabled = task.modelOptions.length === 1;
 
   els.aspectOptions.innerHTML = ASPECTS.map(
     (aspect) => `
@@ -305,7 +315,7 @@ function renderSettings() {
     `,
   ).join("");
 
-  els.resolutionOptions.innerHTML = RESOLUTIONS.map(
+  els.resolutionOptions.innerHTML = resolutionOptions.map(
     (resolution) => `
       <button class="segment-button" type="button" data-setting="resolution" data-value="${resolution}" ${settings.resolution === resolution ? 'aria-pressed="true"' : ""}>${resolution}</button>
     `,
@@ -517,9 +527,12 @@ async function generateImages() {
     const modelLabel = MODELS[modelKey]?.label || "Image";
     state.results = (data.images || []).map((image) => ({ ...image, modelLabel }));
     setStatus(state.results.length ? `Ready: ${state.results.length}` : "No image returned");
-  } catch {
+  } catch (error) {
     state.results = [];
-    setStatus("Не удалось сгенерировать", true);
+    const message = error.message?.includes("Atlas Cloud key")
+      ? "Добавьте Atlas Cloud API key в Vercel"
+      : error.message || "Не удалось сгенерировать";
+    setStatus(message, true);
   } finally {
     state.isGenerating = false;
     renderResults();
@@ -569,7 +582,11 @@ async function copyImage(index) {
       throw new Error("image clipboard unavailable");
     }
 
-    await navigator.clipboard.write([new ClipboardItem({ [image.mediaType || "image/png"]: dataUrlToBlob(image.url) })]);
+    const blob = image.url.startsWith("data:")
+      ? dataUrlToBlob(image.url)
+      : await fetch(image.url).then((response) => response.blob());
+    const mediaType = blob.type || image.mediaType || "image/png";
+    await navigator.clipboard.write([new ClipboardItem({ [mediaType]: blob })]);
     setStatus("Image copied");
   } catch {
     setStatus("Copy unavailable");
@@ -630,7 +647,7 @@ function resetTask() {
   const task = getTask();
   state.values[task.id] = structuredClone(initialValues[task.id]);
   state.settings[task.id] = {
-    model: "auto",
+    model: task.defaultModel,
     aspect: task.defaultAspect,
     resolution: task.defaultResolution,
     count: task.defaultCount,
