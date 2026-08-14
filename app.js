@@ -205,7 +205,6 @@ const els = {
   generateButton: document.querySelector("#generateButton"),
   statusText: document.querySelector("#statusText"),
   resultsGrid: document.querySelector("#resultsGrid"),
-  clearResultsButton: document.querySelector("#clearResultsButton"),
   gallerySize: document.querySelector("#gallerySize"),
 };
 
@@ -463,6 +462,7 @@ function renderResultCards(results = getActiveResults()) {
             <div>
               <button class="ghost-button compact" type="button" data-copy-image="${index}">Copy</button>
               <a class="ghost-button compact" href="${escapeHTML(image.url)}" download="prompt-studio-${index + 1}.png">Download</a>
+              <button class="delete-image-button" type="button" data-delete-image="${index}" aria-label="Удалить изображение" title="Удалить изображение">×</button>
             </div>
           </div>
         </article>
@@ -920,12 +920,6 @@ function bindEvents() {
     renderReferences();
   });
   els.generateButton.addEventListener("click", generateImages);
-  els.clearResultsButton.addEventListener("click", () => {
-    state.histories[state.activeTask] = [];
-    state.results = state.histories[state.activeTask];
-    saveHistories(state.histories);
-    renderResults();
-  });
   els.gallerySize.addEventListener("input", () => {
     state.gallerySize = Math.min(Math.max(Number(els.gallerySize.value) || 260, 160), 420);
     localStorage.setItem(GALLERY_SIZE_STORAGE_KEY, String(state.gallerySize));
@@ -940,6 +934,12 @@ function bindEvents() {
   els.resultsGrid.addEventListener("click", (event) => {
     const copyButton = event.target.closest("[data-copy-image]");
     if (copyButton) copyImage(Number(copyButton.dataset.copyImage));
+
+    const deleteButton = event.target.closest("[data-delete-image]");
+    if (deleteButton) {
+      const image = getActiveResults()[Number(deleteButton.dataset.deleteImage)];
+      if (image) removeResultByUrl(image.url);
+    }
   });
   els.resultsGrid.addEventListener(
     "error",

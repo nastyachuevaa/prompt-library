@@ -88,6 +88,8 @@ h3 { margin: 0; font-size: 13px; }
 .result-actions div { display: flex; gap: 5px; }
 .result-actions .ghost-button { min-height: 28px; border-color: rgba(255,255,255,.28); color: white; background: rgba(255,255,255,.11); }
 .result-actions a { display: inline-grid; place-items: center; text-decoration: none; }
+.delete-image-button { display: grid; width: 28px; height: 28px; place-items: center; border: 1px solid rgba(255,255,255,.28); border-radius: var(--pill); color: white; background: rgba(224,82,86,.58); font-size: 18px; line-height: 1; }
+.delete-image-button:hover { background: rgba(224,82,86,.9); }
 .empty-results { display: grid; min-height: 55vh; place-items: center; color: var(--muted); font-size: 14px; font-weight: 800; }
 .loading-card { min-height: 180px; background: linear-gradient(90deg, #e4e7ee, #f8f9fb, #e4e7ee); background-size: 220% 100%; animation: shimmer 1.2s ease-in-out infinite; }
 @keyframes shimmer { from { background-position: 100% 0; } to { background-position: -100% 0; } }
