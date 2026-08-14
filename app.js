@@ -101,7 +101,7 @@ function createEmptyHistories() {
 }
 
 function normalizeSavedImage(image) {
-  if (!image || typeof image.url !== "string" || !image.url) return null;
+  if (!image || typeof image.url !== "string" || !isUsableImageUrl(image.url)) return null;
 
   return {
     url: image.url,
@@ -110,6 +110,21 @@ function normalizeSavedImage(image) {
     taskId: typeof image.taskId === "string" ? image.taskId : "",
     createdAt: typeof image.createdAt === "string" ? image.createdAt : "",
   };
+}
+
+function isUsableImageUrl(url) {
+  if (typeof url !== "string" || !url) return false;
+  if (url.startsWith("data:image/")) return true;
+
+  try {
+    const parsed = new URL(url);
+    if (!["http:", "https:"].includes(parsed.protocol)) return false;
+    if (parsed.hostname === "api.atlascloud.ai") return false;
+    if (parsed.pathname.includes("/prediction/")) return false;
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 function loadSavedHistories() {
@@ -435,7 +450,7 @@ function renderResultCards(results = getActiveResults()) {
     .map(
       (image, index) => `
         <article class="result-card">
-          <img src="${escapeHTML(image.url)}" alt="Generated image ${index + 1}" />
+          <img src="${escapeHTML(image.url)}" alt="Generated image ${index + 1}" data-result-index="${index}" />
           <div class="result-actions">
             <span>${escapeHTML(image.modelLabel || "Image")}</span>
             <div>
@@ -633,7 +648,7 @@ function addGeneratedImages(images, modelLabel, taskId = state.activeTask) {
   const results = state.histories[taskId] || [];
   const existingUrls = new Set(results.map((image) => image.url));
   const nextImages = (images || [])
-    .filter((image) => image?.url && !existingUrls.has(image.url))
+    .filter((image) => image?.url && isUsableImageUrl(image.url) && !existingUrls.has(image.url))
     .map((image) => ({
       ...image,
       modelLabel,
@@ -648,6 +663,19 @@ function addGeneratedImages(images, modelLabel, taskId = state.activeTask) {
     state.results = state.histories[taskId];
   }
   saveHistories(state.histories);
+}
+
+function removeResultByUrl(url, taskId = state.activeTask) {
+  const results = state.histories[taskId] || [];
+  const nextResults = results.filter((image) => image.url !== url);
+  if (nextResults.length === results.length) return;
+
+  state.histories[taskId] = nextResults;
+  if (taskId === state.activeTask) {
+    state.results = nextResults;
+  }
+  saveHistories(state.histories);
+  renderResults();
 }
 
 async function pollImageJobs({ endpoint, modelKey, modelLabel, pendingIds, taskId }) {
@@ -905,6 +933,15 @@ function bindEvents() {
     const copyButton = event.target.closest("[data-copy-image]");
     if (copyButton) copyImage(Number(copyButton.dataset.copyImage));
   });
+  els.resultsGrid.addEventListener(
+    "error",
+    (event) => {
+      const image = event.target.closest("img[data-result-index]");
+      if (!image) return;
+      removeResultByUrl(image.getAttribute("src"));
+    },
+    true,
+  );
 }
 
 bindEvents();
