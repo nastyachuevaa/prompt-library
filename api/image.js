@@ -37,7 +37,7 @@ function setCorsHeaders(req, res) {
   const allowOrigin = allowedOrigins.has(origin) || origin?.endsWith(".vercel.app") ? origin : "https://nastyachuevaa.github.io";
 
   res.setHeader("Access-Control-Allow-Origin", allowOrigin);
-  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
 }
 
@@ -248,11 +248,91 @@ function getMediaType(url) {
   return "image/png";
 }
 
+function encodeImageSource(url) {
+  return Buffer.from(url, "utf8").toString("base64url");
+}
+
+function decodeImageSource(value) {
+  try {
+    return Buffer.from(value, "base64url").toString("utf8");
+  } catch {
+    return "";
+  }
+}
+
+function isPrivateHostname(hostname) {
+  const value = hostname.toLowerCase();
+  if (["localhost", "0.0.0.0", "127.0.0.1", "::1"].includes(value)) return true;
+  if (/^10\./.test(value)) return true;
+  if (/^127\./.test(value)) return true;
+  if (/^169\.254\./.test(value)) return true;
+  if (/^172\.(1[6-9]|2\d|3[0-1])\./.test(value)) return true;
+  if (/^192\.168\./.test(value)) return true;
+  return false;
+}
+
+function isSafeRemoteImageUrl(url) {
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === "https:" && !isPrivateHostname(parsed.hostname);
+  } catch {
+    return false;
+  }
+}
+
+function makeImageUrl(url) {
+  if (url.startsWith("data:image/")) return url;
+  if (!isSafeRemoteImageUrl(url)) return "";
+  return `/api/image?file=${encodeImageSource(url)}`;
+}
+
+function detectMediaType(bytes, fallback = "image/png") {
+  const view = new Uint8Array(bytes);
+  if (view[0] === 0xff && view[1] === 0xd8 && view[2] === 0xff) return "image/jpeg";
+  if (view[0] === 0x89 && view[1] === 0x50 && view[2] === 0x4e && view[3] === 0x47) return "image/png";
+  if (view[0] === 0x52 && view[1] === 0x49 && view[2] === 0x46 && view[3] === 0x46) return "image/webp";
+  return fallback;
+}
+
+async function proxyImage(req, res, apiKey) {
+  const requestUrl = new URL(req.url, "http://localhost");
+  const sourceUrl = decodeImageSource(requestUrl.searchParams.get("file") || "");
+
+  if (!isSafeRemoteImageUrl(sourceUrl)) {
+    res.status(400).json({ error: "Image URL is not allowed" });
+    return;
+  }
+
+  const sourceHost = new URL(sourceUrl).hostname;
+  const headers = sourceHost.endsWith("atlascloud.ai")
+    ? { "Authorization": `Bearer ${apiKey}` }
+    : {};
+  const response = await fetch(sourceUrl, { headers });
+
+  if (!response.ok) {
+    res.status(502).json({ error: "Image file is unavailable" });
+    return;
+  }
+
+  const bytes = Buffer.from(await response.arrayBuffer());
+  const headerMediaType = response.headers.get("content-type") || "";
+  const mediaType = headerMediaType.startsWith("image/")
+    ? headerMediaType.split(";")[0]
+    : detectMediaType(bytes);
+
+  res.setHeader("Content-Type", mediaType);
+  res.setHeader("Cache-Control", "private, max-age=300");
+  res.status(200).send(bytes);
+}
+
 function formatImages(outputs) {
-  return outputs.map((url) => ({
-    url,
-    mediaType: getMediaType(url),
-  }));
+  return outputs
+    .map((sourceUrl) => ({
+      url: makeImageUrl(sourceUrl),
+      sourceUrl,
+      mediaType: getMediaType(sourceUrl),
+    }))
+    .filter((image) => image.url);
 }
 
 function formatPrediction(prediction) {
@@ -307,14 +387,23 @@ module.exports = async function handler(req, res) {
     return;
   }
 
-  if (req.method !== "POST") {
-    res.status(405).json({ error: "Method not allowed" });
-    return;
-  }
-
   const apiKey = process.env.ATLASCLOUD_API_KEY;
   if (!apiKey) {
     res.status(500).json({ error: "Atlas Cloud key is not configured" });
+    return;
+  }
+
+  if (req.method === "GET") {
+    try {
+      await proxyImage(req, res, apiKey);
+    } catch (error) {
+      res.status(500).json({ error: error.message || "Could not load image" });
+    }
+    return;
+  }
+
+  if (req.method !== "POST") {
+    res.status(405).json({ error: "Method not allowed" });
     return;
   }
 

@@ -115,6 +115,7 @@ function normalizeSavedImage(image) {
 function isUsableImageUrl(url) {
   if (typeof url !== "string" || !url) return false;
   if (url.startsWith("data:image/")) return true;
+  if (url.startsWith("/api/image?file=")) return true;
 
   try {
     const parsed = new URL(url);
