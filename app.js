@@ -59,6 +59,7 @@ const GENERATION_TIMEOUT_MS = 300000;
 const COMPLETED_STATUSES = new Set(["completed", "succeeded", "success", "done"]);
 const FAILED_STATUSES = new Set(["failed", "error", "timeout", "canceled", "cancelled"]);
 const HISTORY_STORAGE_KEY = "prompt-studio-image-history-v1";
+const GALLERY_SIZE_STORAGE_KEY = "prompt-studio-gallery-size-v1";
 const MAX_HISTORY_ITEMS = 80;
 
 const PALETTES = [
@@ -155,6 +156,11 @@ function saveHistories(histories) {
 
 const savedHistories = loadSavedHistories();
 
+function loadGallerySize() {
+  const saved = Number(localStorage.getItem(GALLERY_SIZE_STORAGE_KEY));
+  return Number.isFinite(saved) ? Math.min(Math.max(saved, 160), 420) : 260;
+}
+
 const state = {
   activeTask: "appearance",
   values: structuredClone(initialValues),
@@ -176,6 +182,7 @@ const state = {
   generatingTaskId: "",
   pendingCount: 0,
   status: "",
+  gallerySize: loadGallerySize(),
 };
 
 const referenceCache = new Map();
@@ -199,6 +206,7 @@ const els = {
   statusText: document.querySelector("#statusText"),
   resultsGrid: document.querySelector("#resultsGrid"),
   clearResultsButton: document.querySelector("#clearResultsButton"),
+  gallerySize: document.querySelector("#gallerySize"),
 };
 
 function escapeHTML(value) {
@@ -422,6 +430,8 @@ function renderPromptPreview() {
 }
 
 function renderResults() {
+  els.resultsGrid.style.setProperty("--gallery-tile", `${state.gallerySize}px`);
+  els.gallerySize.value = state.gallerySize;
   const results = getActiveResults();
   const isActiveTaskGenerating = state.isGenerating && state.generatingTaskId === state.activeTask;
 
@@ -922,6 +932,11 @@ function bindEvents() {
     state.histories[state.activeTask] = [];
     state.results = state.histories[state.activeTask];
     saveHistories(state.histories);
+    renderResults();
+  });
+  els.gallerySize.addEventListener("input", () => {
+    state.gallerySize = Math.min(Math.max(Number(els.gallerySize.value) || 260, 160), 420);
+    localStorage.setItem(GALLERY_SIZE_STORAGE_KEY, String(state.gallerySize));
     renderResults();
   });
   els.referenceList.addEventListener("click", (event) => {

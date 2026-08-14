@@ -21,84 +21,92 @@
       </header>
 
       <section class="workspace">
-        <section class="brief-panel" aria-labelledby="taskTitle">
-          <div class="panel-heading">
-            <div>
-              <p class="eyebrow" id="taskModelLabel">Nano Banana</p>
-              <h2 id="taskTitle">NB Appearance Options</h2>
-            </div>
-            <button class="ghost-button" type="button" id="resetButton">Сбросить</button>
-          </div>
-
-          <form class="brief-form" id="briefForm"></form>
-
-          <details class="prompt-preview">
-            <summary>
-              <span>Prompt preview</span>
-              <button class="ghost-button compact" type="button" id="copyPromptButton">Копировать</button>
-            </summary>
-            <textarea id="promptPreview" readonly aria-label="Prompt preview"></textarea>
-          </details>
-        </section>
-
-        <aside class="settings-panel" aria-labelledby="settingsTitle">
-          <div class="panel-heading compact-heading">
-            <h2 id="settingsTitle">Generate</h2>
-            <p class="status-text" id="statusText" aria-live="polite"></p>
-          </div>
-
-          <div class="settings-stack">
-            <label class="field">
-              <span>Model</span>
-              <select id="modelSelect" aria-label="Model"></select>
-            </label>
-
-            <fieldset class="field">
-              <legend>Aspect</legend>
-              <div class="segmented-grid" id="aspectOptions"></div>
-            </fieldset>
-
-            <fieldset class="field">
-              <legend>Size</legend>
-              <div class="segmented-grid three" id="resolutionOptions"></div>
-            </fieldset>
-
-            <label class="field">
-              <span>Images</span>
-              <input id="countInput" type="number" min="1" max="4" value="2" />
-            </label>
-
-            <section class="reference-box" aria-labelledby="referenceTitle">
-              <div class="reference-header">
-                <h3 id="referenceTitle">References</h3>
-                <button class="ghost-button compact" type="button" id="clearRefsButton">Очистить</button>
-              </div>
-              <label class="upload-zone" for="referenceInput">
-                <input id="referenceInput" type="file" accept="image/*" multiple />
-                <span>Добавить изображения</span>
-              </label>
-              <div class="reference-list" id="referenceList"></div>
-            </section>
-          </div>
-
-          <button class="primary-button generate-button" type="button" id="generateButton">
-            Generate
-          </button>
-        </aside>
-
         <section class="results-panel" aria-labelledby="resultsTitle">
           <div class="results-header">
             <div>
               <p class="eyebrow">Output</p>
               <h2 id="resultsTitle">Images</h2>
             </div>
-            <button class="ghost-button" type="button" id="clearResultsButton">Очистить</button>
+            <div class="gallery-tools">
+              <label class="gallery-scale" for="gallerySize">
+                <span>Размер</span>
+                <input id="gallerySize" type="range" min="160" max="420" step="10" value="260" aria-label="Размер изображений в галерее" />
+              </label>
+              <button class="ghost-button" type="button" id="clearResultsButton">Очистить</button>
+            </div>
           </div>
           <div class="results-grid" id="resultsGrid"></div>
+        </section>
+
+        <section class="composer" aria-label="Параметры генерации">
+          <section class="brief-panel" aria-labelledby="taskTitle">
+            <div class="panel-heading">
+              <div>
+                <p class="eyebrow" id="taskModelLabel">Nano Banana</p>
+                <h2 id="taskTitle">NB Appearance Options</h2>
+              </div>
+              <button class="ghost-button compact" type="button" id="resetButton">Сбросить</button>
+            </div>
+
+            <form class="brief-form" id="briefForm"></form>
+
+            <details class="prompt-preview">
+              <summary>
+                <span>Prompt preview</span>
+                <button class="ghost-button compact" type="button" id="copyPromptButton">Копировать</button>
+              </summary>
+              <textarea id="promptPreview" readonly aria-label="Prompt preview"></textarea>
+            </details>
+          </section>
+
+          <aside class="settings-panel" aria-labelledby="settingsTitle">
+            <div class="panel-heading compact-heading">
+              <h2 id="settingsTitle">Generate</h2>
+              <p class="status-text" id="statusText" aria-live="polite"></p>
+            </div>
+
+            <div class="settings-stack">
+              <label class="field">
+                <span>Model</span>
+                <select id="modelSelect" aria-label="Model"></select>
+              </label>
+
+              <fieldset class="field">
+                <legend>Aspect</legend>
+                <div class="segmented-grid" id="aspectOptions"></div>
+              </fieldset>
+
+              <div class="settings-row">
+                <fieldset class="field">
+                  <legend>Size</legend>
+                  <div class="segmented-grid three" id="resolutionOptions"></div>
+                </fieldset>
+
+                <label class="field count-field">
+                  <span>Images</span>
+                  <input id="countInput" type="number" min="1" max="4" value="2" />
+                </label>
+              </div>
+
+              <section class="reference-box" aria-labelledby="referenceTitle">
+                <div class="reference-header">
+                  <h3 id="referenceTitle">References</h3>
+                  <button class="ghost-button compact" type="button" id="clearRefsButton">Очистить</button>
+                </div>
+                <label class="upload-zone" for="referenceInput">
+                  <input id="referenceInput" type="file" accept="image/*" multiple />
+                  <span>Добавить изображения</span>
+                </label>
+                <div class="reference-list" id="referenceList"></div>
+              </section>
+            </div>
+
+            <button class="primary-button generate-button" type="button" id="generateButton">Generate</button>
+          </aside>
         </section>
       </section>
     </main>
 
-    <script src="app.js?v=studio-3" defer></script>
+    <script src="app.js?v=gallery-1" defer></script>
   </body>
 </html>
