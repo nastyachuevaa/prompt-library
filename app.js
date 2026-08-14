@@ -183,6 +183,7 @@ const state = {
   pendingCount: 0,
   status: "",
   gallerySize: loadGallerySize(),
+  selectedUrls: new Set(),
 };
 
 const referenceCache = new Map();
@@ -206,6 +207,9 @@ const els = {
   statusText: document.querySelector("#statusText"),
   resultsGrid: document.querySelector("#resultsGrid"),
   gallerySize: document.querySelector("#gallerySize"),
+  selectionToolbar: document.querySelector("#selectionToolbar"),
+  selectionCount: document.querySelector("#selectionCount"),
+  deleteSelectedButton: document.querySelector("#deleteSelectedButton"),
 };
 
 function escapeHTML(value) {
@@ -428,6 +432,10 @@ function renderResults() {
   els.resultsGrid.style.setProperty("--gallery-tile", `${state.gallerySize}px`);
   els.gallerySize.value = state.gallerySize;
   const results = getActiveResults();
+  const resultUrls = new Set(results.map((image) => image.url));
+  state.selectedUrls = new Set([...state.selectedUrls].filter((url) => resultUrls.has(url)));
+  els.selectionToolbar.hidden = state.selectedUrls.size === 0;
+  els.selectionCount.textContent = `Выбрано: ${state.selectedUrls.size}`;
   const isActiveTaskGenerating = state.isGenerating && state.generatingTaskId === state.activeTask;
 
   if (isActiveTaskGenerating) {
@@ -454,19 +462,22 @@ function renderResults() {
 function renderResultCards(results = getActiveResults()) {
   return results
     .map(
-      (image, index) => `
-        <article class="result-card">
+      (image, index) => {
+        const isSelected = state.selectedUrls.has(image.url);
+        return `
+        <article class="result-card ${isSelected ? "is-selected" : ""}">
+          <button class="select-image-button" type="button" data-select-image="${index}" aria-label="${isSelected ? "Снять выделение" : "Выделить изображение"}" aria-pressed="${isSelected}" title="${isSelected ? "Снять выделение" : "Выделить изображение"}">${isSelected ? "✓" : ""}</button>
           <img src="${escapeHTML(image.url)}" alt="Generated image ${index + 1}" data-result-index="${index}" />
           <div class="result-actions">
             <span>${escapeHTML(image.modelLabel || "Image")}</span>
             <div>
               <button class="ghost-button compact" type="button" data-copy-image="${index}">Copy</button>
               <a class="ghost-button compact" href="${escapeHTML(image.url)}" download="prompt-studio-${index + 1}.png">Download</a>
-              <button class="delete-image-button" type="button" data-delete-image="${index}" aria-label="Удалить изображение" title="Удалить изображение">×</button>
             </div>
           </div>
         </article>
-      `,
+      `;
+      },
     )
     .join("");
 }
@@ -678,6 +689,7 @@ function removeResultByUrl(url, taskId = state.activeTask) {
   if (nextResults.length === results.length) return;
 
   state.histories[taskId] = nextResults;
+  state.selectedUrls.delete(url);
   if (taskId === state.activeTask) {
     state.results = nextResults;
   }
@@ -836,6 +848,7 @@ function switchTask(taskId) {
   if (!TASKS.some((task) => task.id === taskId)) return;
   state.activeTask = taskId;
   state.results = state.histories[taskId] || [];
+  state.selectedUrls.clear();
   setStatus("");
   renderAll();
 }
@@ -925,6 +938,14 @@ function bindEvents() {
     localStorage.setItem(GALLERY_SIZE_STORAGE_KEY, String(state.gallerySize));
     renderResults();
   });
+  els.deleteSelectedButton.addEventListener("click", () => {
+    const selected = state.selectedUrls;
+    state.histories[state.activeTask] = getActiveResults().filter((image) => !selected.has(image.url));
+    state.results = state.histories[state.activeTask];
+    state.selectedUrls.clear();
+    saveHistories(state.histories);
+    renderResults();
+  });
   els.referenceList.addEventListener("click", (event) => {
     const removeButton = event.target.closest("[data-remove-ref]");
     if (!removeButton) return;
@@ -932,14 +953,18 @@ function bindEvents() {
     renderReferences();
   });
   els.resultsGrid.addEventListener("click", (event) => {
+    const selectButton = event.target.closest("[data-select-image]");
+    if (selectButton) {
+      const image = getActiveResults()[Number(selectButton.dataset.selectImage)];
+      if (!image) return;
+      if (state.selectedUrls.has(image.url)) state.selectedUrls.delete(image.url);
+      else state.selectedUrls.add(image.url);
+      renderResults();
+      return;
+    }
+
     const copyButton = event.target.closest("[data-copy-image]");
     if (copyButton) copyImage(Number(copyButton.dataset.copyImage));
-
-    const deleteButton = event.target.closest("[data-delete-image]");
-    if (deleteButton) {
-      const image = getActiveResults()[Number(deleteButton.dataset.deleteImage)];
-      if (image) removeResultByUrl(image.url);
-    }
   });
   els.resultsGrid.addEventListener(
     "error",

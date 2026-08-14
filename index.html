@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Prompt Studio</title>
-    <link rel="stylesheet" href="styles.css?v=gallery-3" />
+    <link rel="stylesheet" href="styles.css?v=gallery-4" />
   </head>
   <body>
     <main class="studio-shell" aria-label="Prompt Studio">
@@ -32,6 +32,10 @@
                 <span>Размер</span>
                 <input id="gallerySize" type="range" min="160" max="420" step="10" value="260" aria-label="Размер изображений в галерее" />
               </label>
+              <div class="selection-toolbar" id="selectionToolbar" hidden>
+                <span id="selectionCount">Выбрано: 0</span>
+                <button class="delete-selected-button" type="button" id="deleteSelectedButton">Удалить выбранные</button>
+              </div>
             </div>
           </div>
           <div class="results-grid" id="resultsGrid"></div>
@@ -104,6 +108,6 @@
       </section>
     </main>
 
-    <script src="app.js?v=gallery-3" defer></script>
+    <script src="app.js?v=gallery-4" defer></script>
   </body>
 </html>
