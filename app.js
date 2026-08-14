@@ -196,8 +196,8 @@ const els = {
   promptPreview: document.querySelector("#promptPreview"),
   copyPromptButton: document.querySelector("#copyPromptButton"),
   modelSelect: document.querySelector("#modelSelect"),
-  aspectOptions: document.querySelector("#aspectOptions"),
-  resolutionOptions: document.querySelector("#resolutionOptions"),
+  aspectSelect: document.querySelector("#aspectSelect"),
+  resolutionSelect: document.querySelector("#resolutionSelect"),
   countInput: document.querySelector("#countInput"),
   referenceInput: document.querySelector("#referenceInput"),
   referenceList: document.querySelector("#referenceList"),
@@ -385,16 +385,12 @@ function renderSettings() {
     .join("");
   els.modelSelect.disabled = task.modelOptions.length === 1;
 
-  els.aspectOptions.innerHTML = ASPECTS.map(
-    (aspect) => `
-      <button class="segment-button" type="button" data-setting="aspect" data-value="${aspect}" ${settings.aspect === aspect ? 'aria-pressed="true"' : ""}>${aspect}</button>
-    `,
+  els.aspectSelect.innerHTML = ASPECTS.map(
+    (aspect) => `<option value="${aspect}" ${settings.aspect === aspect ? "selected" : ""}>${aspect}</option>`,
   ).join("");
 
-  els.resolutionOptions.innerHTML = resolutionOptions.map(
-    (resolution) => `
-      <button class="segment-button" type="button" data-setting="resolution" data-value="${resolution}" ${settings.resolution === resolution ? 'aria-pressed="true"' : ""}>${resolution}</button>
-    `,
+  els.resolutionSelect.innerHTML = resolutionOptions.map(
+    (resolution) => `<option value="${resolution}" ${settings.resolution === resolution ? "selected" : ""}>${resolution}</option>`,
   ).join("");
 
   els.countInput.value = settings.count;
@@ -904,17 +900,13 @@ function bindEvents() {
     renderSettings();
   });
 
-  els.aspectOptions.addEventListener("click", (event) => {
-    const button = event.target.closest("[data-setting]");
-    if (!button) return;
-    getSettings()[button.dataset.setting] = button.dataset.value;
+  els.aspectSelect.addEventListener("change", () => {
+    getSettings().aspect = els.aspectSelect.value;
     renderSettings();
   });
 
-  els.resolutionOptions.addEventListener("click", (event) => {
-    const button = event.target.closest("[data-setting]");
-    if (!button) return;
-    getSettings()[button.dataset.setting] = button.dataset.value;
+  els.resolutionSelect.addEventListener("change", () => {
+    getSettings().resolution = els.resolutionSelect.value;
     renderSettings();
   });
 
