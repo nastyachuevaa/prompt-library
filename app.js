@@ -282,7 +282,7 @@ function renderAppearanceForm() {
 
     <label class="field">
       <span>Описание</span>
-      <textarea data-input="description" rows="7" placeholder="раса/этничность, внешность, волосы, глаза, тело, вайб, одежда">${escapeHTML(values.description)}</textarea>
+      <textarea class="compact-description" data-input="description" rows="3" placeholder="раса/этничность, внешность, волосы, глаза, тело, вайб, одежда">${escapeHTML(values.description)}</textarea>
     </label>
   `;
 }
@@ -292,7 +292,7 @@ function renderSeedreamForm() {
   return `
     <label class="field">
       <span>Идея сцены</span>
-      <textarea data-input="idea" rows="8" placeholder="например, девушка смеется в лифте, кадр будто снят случайно">${escapeHTML(values.idea)}</textarea>
+      <textarea class="compact-description" data-input="idea" rows="3" placeholder="например, девушка смеется в лифте, кадр будто снят случайно">${escapeHTML(values.idea)}</textarea>
     </label>
     <label class="field">
       <span>Дополнительно</span>
