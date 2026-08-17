@@ -41,6 +41,28 @@ function getOutputUrl(data) {
     .find(Boolean) || "";
 }
 
+function getPredictionId(data) {
+  const response = data?.data || data;
+  return response?.id || response?.prediction_id || response?.predictionId || response?.request_id || "";
+}
+
+function formatResult(data) {
+  const response = data?.data || data;
+  const outputUrl = getOutputUrl(data);
+  return {
+    predictionId: getPredictionId(data),
+    status: response?.status || (outputUrl ? "completed" : "processing"),
+    error: response?.error || "",
+    image: outputUrl
+      ? {
+          url: makeProxyImageUrl(outputUrl),
+          sourceUrl: outputUrl,
+          mediaType: "image/png",
+        }
+      : null,
+  };
+}
+
 async function uploadSourceImage(apiKey, req, imageUrl) {
   const source = await fetch(makeAbsoluteUrl(req, imageUrl));
   if (!source.ok) throw new Error("Could not load the image");
@@ -68,6 +90,21 @@ module.exports = async function handler(req, res) {
   const apiKey = process.env.ATLASCLOUD_API_KEY;
   if (!apiKey) return res.status(500).json({ error: "Atlas Cloud key is not configured" });
 
+  if (req.body?.action === "poll") {
+    const predictionId = typeof req.body?.predictionId === "string" ? req.body.predictionId : "";
+    if (!predictionId) return res.status(400).json({ error: "Prediction id is required" });
+    try {
+      const polled = await fetch(`${ATLAS_BASE_URL}/prediction/${encodeURIComponent(predictionId)}`, {
+        headers: { "Authorization": `Bearer ${apiKey}` },
+      });
+      const data = await polled.json();
+      if (!polled.ok) throw new Error(data?.error || data?.message || "Atlas Cloud polling failed");
+      return res.status(200).json(formatResult(data));
+    } catch (error) {
+      return res.status(500).json({ error: error.message || "Could not check the cutout" });
+    }
+  }
+
   const imageUrl = typeof req.body?.imageUrl === "string" ? req.body.imageUrl : "";
   if (!imageUrl || !(/^(https?:\/\/)/.test(imageUrl) || imageUrl.startsWith("/api/image?file="))) {
     return res.status(400).json({ error: "Image URL is required" });
@@ -86,22 +123,14 @@ module.exports = async function handler(req, res) {
       body: JSON.stringify({
         model: "atlascloud/image-background-remover",
         image: uploadedImageUrl,
-        enable_sync_mode: true,
+        enable_sync_mode: false,
         enable_base64_output: false,
       }),
     });
     const data = await removed.json();
     if (!removed.ok) throw new Error(data?.error || data?.message || data?.data?.error || "Atlas Cloud could not remove the background");
 
-    const outputUrl = getOutputUrl(data);
-    if (!outputUrl) throw new Error("Atlas Cloud has not returned the cutout yet. Try again in a moment.");
-    return res.status(200).json({
-      image: {
-        url: makeProxyImageUrl(outputUrl),
-        sourceUrl: outputUrl,
-        mediaType: "image/png",
-      },
-    });
+    return res.status(200).json(formatResult(data));
   } catch (error) {
     return res.status(500).json({ error: error.message || "Could not remove the background" });
   }

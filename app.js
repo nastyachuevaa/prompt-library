@@ -749,8 +749,25 @@ async function removeBackground(index) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ imageUrl: image.url }),
     });
-    const data = await response.json();
+    let data = await response.json();
     if (!response.ok) throw new Error(data?.error || "Не удалось убрать фон");
+
+    const startedAt = Date.now();
+    while (!data.image && data.predictionId && Date.now() - startedAt < 90000) {
+      await wait(2000);
+      const pollResponse = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "poll", predictionId: data.predictionId }),
+      });
+      data = await pollResponse.json();
+      if (!pollResponse.ok) throw new Error(data?.error || "Не удалось получить результат вырезания");
+      if (["failed", "error", "canceled", "cancelled"].includes(String(data.status).toLowerCase())) {
+        throw new Error(data.error || "Atlas Cloud не смог убрать фон");
+      }
+    }
+
+    if (!data.image) throw new Error("Atlas Cloud пока не вернул версию без фона. Попробуйте еще раз.");
     addGeneratedImages([data.image], `${image.modelLabel || "Image"} - без фона`, state.activeTask);
     setStatus("Готово: версия без фона добавлена", true);
   } catch (error) {
