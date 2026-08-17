@@ -162,7 +162,7 @@ input:focus, select:focus, textarea:focus { border-color: rgba(193,143,255,.9); 
 .settings-row.generation-options { grid-template-columns: minmax(0,1fr) minmax(0,1fr) 64px; }
 .count-field input { text-align: center; }
 .reference-box, .prompt-preview { position: relative; flex: 0 0 auto; margin: 0; padding: 0; border: 0; }
-.reference-box { grid-column: 1; grid-row: 2; justify-self: start; }
+.reference-box { grid-column: 1; grid-row: 2; justify-self: end; }
 .prompt-preview { grid-column: 2; grid-row: 2; }
 .reference-box summary, .prompt-preview summary { display: grid; min-height: 40px; place-items: center; padding: 0 10px; border: 1px solid rgba(255,255,255,.22); border-radius: var(--pill); color: #e7e9f1; background: rgba(255,255,255,.05); cursor: pointer; font-size: 12px; font-weight: 800; list-style: none; }
 .reference-box summary::-webkit-details-marker, .prompt-preview summary::-webkit-details-marker { display: none; }
