@@ -105,7 +105,9 @@ function normalizeSavedImage(image) {
   if (!image || typeof image.url !== "string" || !isUsableImageUrl(image.url)) return null;
 
   return {
+    id: typeof image.id === "string" ? image.id : "",
     url: image.url,
+    sourceUrl: typeof image.sourceUrl === "string" ? image.sourceUrl : image.url,
     mediaType: typeof image.mediaType === "string" ? image.mediaType : "image/png",
     modelLabel: typeof image.modelLabel === "string" ? image.modelLabel : "Image",
     taskId: typeof image.taskId === "string" ? image.taskId : "",
@@ -184,6 +186,7 @@ const state = {
   status: "",
   gallerySize: loadGallerySize(),
   selectedUrls: new Set(),
+  remoteHistoryLoaded: new Set(),
 };
 
 const referenceCache = new Map();
@@ -539,6 +542,10 @@ function getImageEndpoint() {
   return "";
 }
 
+function getHistoryEndpoint() {
+  return getImageEndpoint() ? "/api/history" : "";
+}
+
 function validateBeforeGenerate() {
   const values = state.values[state.activeTask];
   if (state.activeTask === "liveops" && !values.subject.trim()) return "Введите предмет";
@@ -636,6 +643,7 @@ function addGeneratedImages(images, modelLabel, taskId = state.activeTask) {
     .filter((image) => image?.url && isUsableImageUrl(image.url) && !existingUrls.has(image.url))
     .map((image) => ({
       ...image,
+      sourceUrl: image.sourceUrl || image.url,
       modelLabel,
       taskId,
       createdAt: new Date().toISOString(),
@@ -648,6 +656,7 @@ function addGeneratedImages(images, modelLabel, taskId = state.activeTask) {
     state.results = state.histories[taskId];
   }
   saveHistories(state.histories);
+  persistImages(taskId, nextImages);
 }
 
 function removeResultByUrl(url, taskId = state.activeTask) {
@@ -661,7 +670,79 @@ function removeResultByUrl(url, taskId = state.activeTask) {
     state.results = nextResults;
   }
   saveHistories(state.histories);
+  deletePersistedImages(taskId, results.filter((image) => image.url === url));
   renderResults();
+}
+
+function mergeHistoryImages(taskId, images) {
+  const existing = state.histories[taskId] || [];
+  const merged = [...images.map(normalizeSavedImage).filter(Boolean), ...existing];
+  const seen = new Set();
+  state.histories[taskId] = merged.filter((image) => {
+    const key = image.id || image.sourceUrl || image.url;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  }).slice(0, MAX_HISTORY_ITEMS);
+  if (taskId === state.activeTask) state.results = state.histories[taskId];
+  saveHistories(state.histories);
+}
+
+async function persistImages(taskId, images) {
+  const endpoint = getHistoryEndpoint();
+  if (!endpoint || !images.length) return;
+
+  try {
+    const response = await fetch(endpoint, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "save", taskId, images }),
+    });
+    if (!response.ok) return;
+    const data = await response.json();
+    if (!data.images?.length) return;
+    const savedBySource = new Map(data.images.map((image) => [image.sourceUrl, normalizeSavedImage(image)]));
+    state.histories[taskId] = (state.histories[taskId] || []).map((image) => savedBySource.get(image.sourceUrl || image.url) || image);
+    if (taskId === state.activeTask) state.results = state.histories[taskId];
+    saveHistories(state.histories);
+    if (taskId === state.activeTask) renderResults();
+  } catch {
+    // Local history remains available when the archive is temporarily unavailable.
+  }
+}
+
+async function deletePersistedImages(taskId, images) {
+  const endpoint = getHistoryEndpoint();
+  const ids = images.map((image) => image.id).filter(Boolean);
+  if (!endpoint || !ids.length) return;
+
+  try {
+    await fetch(endpoint, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "delete", taskId, ids }),
+    });
+  } catch {
+    // The visible deletion is already complete.
+  }
+}
+
+async function loadRemoteHistory(taskId) {
+  const endpoint = getHistoryEndpoint();
+  if (!endpoint || state.remoteHistoryLoaded.has(taskId)) return;
+  state.remoteHistoryLoaded.add(taskId);
+
+  try {
+    const response = await fetch(`${endpoint}?taskId=${encodeURIComponent(taskId)}`);
+    if (!response.ok) return;
+    const data = await response.json();
+    const localOnly = (state.histories[taskId] || []).filter((image) => !image.id);
+    mergeHistoryImages(taskId, data.images || []);
+    if (localOnly.length) persistImages(taskId, localOnly);
+    if (taskId === state.activeTask) renderResults();
+  } catch {
+    // The local gallery is a fallback until the persistent archive is reachable.
+  }
 }
 
 async function pollImageJobs({ endpoint, modelKey, modelLabel, pendingIds, taskId }) {
@@ -818,6 +899,7 @@ function switchTask(taskId) {
   state.selectedUrls.clear();
   setStatus("");
   renderAll();
+  loadRemoteHistory(taskId);
 }
 
 function resetTask() {
@@ -909,10 +991,12 @@ function bindEvents() {
   });
   els.deleteSelectedButton.addEventListener("click", () => {
     const selected = state.selectedUrls;
+    const deleted = getActiveResults().filter((image) => selected.has(image.url));
     state.histories[state.activeTask] = getActiveResults().filter((image) => !selected.has(image.url));
     state.results = state.histories[state.activeTask];
     state.selectedUrls.clear();
     saveHistories(state.histories);
+    deletePersistedImages(state.activeTask, deleted);
     renderResults();
   });
   els.referenceList.addEventListener("click", (event) => {
@@ -948,3 +1032,4 @@ function bindEvents() {
 
 bindEvents();
 renderAll();
+loadRemoteHistory(state.activeTask);
