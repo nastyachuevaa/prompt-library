@@ -327,22 +327,17 @@ function renderLiveopsForm() {
 function renderAvatarForm() {
   const values = state.values.avatars;
   return `
-    <label class="field compact-select-field">
-      <span>Пол</span>
-      <select data-input="gender" aria-label="Пол">
-        <option value="man" ${values.gender === "man" ? "selected" : ""}>Мужчина</option>
-        <option value="woman" ${values.gender === "woman" ? "selected" : ""}>Женщина</option>
-      </select>
-    </label>
-
-    <div class="field-grid">
-      <label class="field">
-        <span>Выражение лица</span>
-        <textarea data-input="expression" rows="5" placeholder="например, спокойный уверенный взгляд, легкая улыбка">${escapeHTML(values.expression)}</textarea>
+    <div class="avatar-form-fields">
+      <label class="field compact-select-field">
+        <span>Пол</span>
+        <select data-input="gender" aria-label="Пол">
+          <option value="man" ${values.gender === "man" ? "selected" : ""}>Мужчина</option>
+          <option value="woman" ${values.gender === "woman" ? "selected" : ""}>Женщина</option>
+        </select>
       </label>
       <label class="field">
-        <span>Одежда</span>
-        <textarea data-input="clothing" rows="5" placeholder="например, черная водолазка, свободный серый пиджак">${escapeHTML(values.clothing)}</textarea>
+        <span>Образ и выражение</span>
+        <textarea class="avatar-description" data-input="expression" rows="3" placeholder="например, спокойный уверенный взгляд, легкая улыбка, чёрная водолазка и свободный серый пиджак">${escapeHTML(values.expression)}</textarea>
       </label>
     </div>
   `;
@@ -515,15 +510,13 @@ function makeAvatarPrompt() {
   const subject = values.gender === "woman" ? "adult woman" : "adult man";
   const pronoun = values.gender === "woman" ? "she" : "he";
   const possessive = values.gender === "woman" ? "her" : "his";
-  const expression = values.expression.trim() || "neutral confident expression, direct eye contact";
-  const clothing = values.clothing.trim() || "simple clean contemporary clothing";
+  const look = values.expression.trim() || "neutral confident expression, direct eye contact, simple clean contemporary clothing";
 
   return [
     "Preserve from Image 1: identity STRUCTURE only — facial bone structure, eye shape and color, eyebrow shape, nose shape, mouth shape at rest, ear shape, jawline, hairline, hair length and texture, facial hair if present, skin tone, neck, build, and overall likeness. The person must read as the same individual actively living the moment described, not as a face transplanted from the reference.",
     `Subject: ${subject}.`,
     `Change: ${pronoun} is in a relaxed leaning attitude with weight off one hip, shifting ${possessive} weight in a relaxed manner, making direct eye contact with the camera.`,
-    `Expression: ${expression}.`,
-    `Clothing: ${clothing}.`,
+    `Expression and clothing: ${look}.`,
     "Camera: 85mm portrait lens, f/2.0, eye-level, mid-thigh crop, subject centered, head, hair, hands, and arms fully in frame.",
     "Lighting: soft natural daylight-balanced key from camera-front-left at ~45°, gentle white bounce fill from camera-front-right, balanced and even with a soft realistic falloff, neutral white balance, gentle catchlights in both eyes — should read as beautiful natural light, not a commercial studio. No backlight, rim light, edge light, hair light, colored gels, or cinematic grading.",
     "Background: solid dark warm grey seamless backdrop, evenly lit, no gradient, no vignette, soft natural contact shadow where the subject meets the floor.",

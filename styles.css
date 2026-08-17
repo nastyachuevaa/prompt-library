@@ -136,6 +136,8 @@ h3 { margin: 0; font-size: 13px; }
 .field-grid { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 10px; }
 .appearance-quick-fields { display: grid; grid-template-columns: 150px 130px minmax(0, 1fr); gap: 10px; }
 .liveops-options { display: grid; grid-template-columns: 170px minmax(0, 1fr); gap: 10px; }
+.avatar-form-fields { display: grid; grid-template-columns: 180px minmax(0, 1fr); align-items: end; gap: 10px; }
+.avatar-description { height: 58px; min-height: 58px; }
 input, select, textarea { width: 100%; border: 1px solid rgba(255,255,255,.17); border-radius: 9px; color: #f9f9fb; background: rgba(255,255,255,.08); outline: none; }
 input, select { min-height: 40px; padding: 0 12px; }
 textarea { min-height: 46px; padding: 8px 12px; resize: vertical; line-height: 1.4; }
@@ -209,7 +211,7 @@ input:focus, select:focus, textarea:focus { border-color: rgba(193,143,255,.9); 
   .compact-controls { flex-wrap: wrap; }
   .model-control { flex: 1 1 150px; }
   .settings-panel { grid-template-rows: auto auto; }
-  .field-grid, .palette-grid, .appearance-quick-fields, .liveops-options { grid-template-columns: 1fr; }
+  .field-grid, .palette-grid, .appearance-quick-fields, .liveops-options, .avatar-form-fields { grid-template-columns: 1fr; }
   .results-grid { gap: 3px; }
   .result-actions { opacity: 1; transform: none; }
 }
