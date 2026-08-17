@@ -336,7 +336,7 @@ function renderAvatarForm() {
         </select>
       </label>
       <label class="field">
-        <span>Одежда и выражение</span>
+        <span>Выражение лица</span>
         <textarea class="avatar-description" data-input="expression" rows="3" placeholder="например, спокойный уверенный взгляд, легкая улыбка, чёрная водолазка и свободный серый пиджак">${escapeHTML(values.expression)}</textarea>
       </label>
     </div>
