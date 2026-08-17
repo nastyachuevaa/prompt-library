@@ -321,10 +321,6 @@ function renderLiveopsForm() {
         <span>Свой цвет</span>
         <input data-input="customColor" type="text" value="${escapeHTML(values.customColor)}" placeholder="например, серебряный / лавандовый" autocomplete="off" />
       </label>
-      <label class="field">
-        <span>Детали</span>
-        <input data-input="details" type="text" value="${escapeHTML(values.details)}" placeholder="без фона, мягкий контур" autocomplete="off" />
-      </label>
     </div>
   `;
 }
@@ -512,8 +508,7 @@ function makeSeedreamPrompt() {
 function makeLiveopsPrompt() {
   const values = state.values.liveops;
   const subject = values.subject.trim() || "button object";
-  const details = values.details.trim() ? ` ${values.details.trim()}` : "";
-  return `3d иконка ${subject} глассморфизм ${getColorPrompt()} вот как примеры. скопируй стиль рефов. полупрозрачно, глассморфизм${details}`;
+  return `3d иконка ${subject} глассморфизм ${getColorPrompt()} вот как примеры. скопируй стиль рефов. полупрозрачно, глассморфизм`;
 }
 
 function makeAvatarPrompt() {
