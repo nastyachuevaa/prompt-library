@@ -420,11 +420,11 @@ function renderReferences() {
           `,
         )
         .join("")
-    : '<p class="empty-note">Нет референсов</p>';
+    : "";
 }
 
 function renderPromptPreview() {
-  els.promptPreview.value = makePrompt();
+  if (els.promptPreview) els.promptPreview.value = makePrompt();
 }
 
 function renderResults() {
@@ -903,10 +903,12 @@ function bindEvents() {
   els.briefForm.addEventListener("change", handleFormInput);
   els.briefForm.addEventListener("click", handleFormClick);
   els.resetButton.addEventListener("click", resetTask);
-  els.copyPromptButton.addEventListener("click", (event) => {
-    event.preventDefault();
-    copyPrompt();
-  });
+  if (els.copyPromptButton) {
+    els.copyPromptButton.addEventListener("click", (event) => {
+      event.preventDefault();
+      copyPrompt();
+    });
+  }
 
   els.modelSelect.addEventListener("change", () => {
     getSettings().model = els.modelSelect.value;
@@ -928,10 +930,12 @@ function bindEvents() {
   });
 
   els.referenceInput.addEventListener("change", () => addReferences(els.referenceInput.files));
-  els.clearRefsButton.addEventListener("click", () => {
-    state.references[state.activeTask] = [];
-    renderReferences();
-  });
+  if (els.clearRefsButton) {
+    els.clearRefsButton.addEventListener("click", () => {
+      state.references[state.activeTask] = [];
+      renderReferences();
+    });
+  }
   els.generateButton.addEventListener("click", generateImages);
   els.gallerySize.addEventListener("input", () => {
     state.gallerySize = Math.min(Math.max(Number(els.gallerySize.value) || 260, 160), 420);

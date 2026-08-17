@@ -162,7 +162,7 @@ input:focus, select:focus, textarea:focus { border-color: rgba(193,143,255,.9); 
 .settings-row.generation-options { grid-template-columns: minmax(0,1fr) minmax(0,1fr) 64px; }
 .count-field input { text-align: center; }
 .reference-box, .prompt-preview { position: relative; flex: 0 0 auto; margin: 0; padding: 0; border: 0; }
-.reference-box { grid-column: 1; grid-row: 2; justify-self: end; }
+.reference-box { display: flex; grid-column: 1 / span 2; grid-row: 2; align-items: center; gap: 7px; min-width: 0; }
 .prompt-preview { grid-column: 2; grid-row: 2; }
 .reference-box summary, .prompt-preview summary { display: grid; min-height: 40px; place-items: center; padding: 0 10px; border: 1px solid rgba(255,255,255,.22); border-radius: var(--pill); color: #e7e9f1; background: rgba(255,255,255,.05); cursor: pointer; font-size: 12px; font-weight: 800; list-style: none; }
 .reference-box summary::-webkit-details-marker, .prompt-preview summary::-webkit-details-marker { display: none; }
@@ -170,8 +170,9 @@ input:focus, select:focus, textarea:focus { border-color: rgba(193,143,255,.9); 
 .prompt-popover { width: min(460px, calc(100vw - 48px)); }
 .prompt-preview textarea { min-height: 130px; margin: 0; color: #c9cfdb; font-size: 11px; }
 .upload-zone { display: grid; min-height: 36px; place-items: center; border-style: dashed; border-color: rgba(255,255,255,.23); color: #c2c8d5; background: rgba(255,255,255,.04); font-size: 11px; font-weight: 800; }
+.reference-box .upload-zone { flex: 0 0 168px; min-height: 40px; border-radius: var(--pill); }
 .upload-zone input { display: none; }
-.reference-list { display: flex; flex-wrap: wrap; gap: 6px; }
+.reference-list { display: flex; min-width: 0; flex-wrap: wrap; gap: 6px; }
 .reference-item { position: relative; overflow: hidden; width: 36px; height: 36px; border: 1px solid rgba(255,255,255,.2); border-radius: 7px; background: #111113; }
 .reference-item img { width: 100%; height: 100%; object-fit: cover; }
 .icon-button { position: absolute; top: 3px; right: 3px; display: grid; width: 18px; height: 18px; place-items: center; border: 0; border-radius: var(--pill); color: white; background: rgba(32,35,45,.82); }

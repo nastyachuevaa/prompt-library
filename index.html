@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Prompt Studio</title>
-    <link rel="stylesheet" href="styles.css?v=gallery-9" />
+    <link rel="stylesheet" href="styles.css?v=gallery-10" />
   </head>
   <body>
     <main class="studio-shell" aria-label="Prompt Studio">
@@ -77,31 +77,13 @@
               </label>
             </div>
 
-            <details class="reference-box" aria-labelledby="referenceTitle">
-              <summary id="referenceTitle">Референсы</summary>
-              <div class="reference-popover">
-                <div class="reference-header">
-                  <h3>Референсы</h3>
-                  <button class="ghost-button compact" type="button" id="clearRefsButton">Очистить</button>
-                </div>
-                <label class="upload-zone" for="referenceInput">
-                  <input id="referenceInput" type="file" accept="image/*" multiple />
-                  <span>Добавить изображения</span>
-                </label>
-                <div class="reference-list" id="referenceList"></div>
-              </div>
-            </details>
-
-            <details class="prompt-preview">
-              <summary>Prompt</summary>
-              <div class="prompt-popover">
-                <div class="reference-header">
-                  <h3>Prompt preview</h3>
-                  <button class="ghost-button compact" type="button" id="copyPromptButton">Копировать</button>
-                </div>
-                <textarea id="promptPreview" readonly aria-label="Prompt preview"></textarea>
-              </div>
-            </details>
+            <section class="reference-box" aria-labelledby="referenceTitle">
+              <label class="upload-zone" id="referenceTitle" for="referenceInput">
+                <input id="referenceInput" type="file" accept="image/*" multiple />
+                <span>Добавить референсы</span>
+              </label>
+              <div class="reference-list" id="referenceList"></div>
+            </section>
 
             <button class="reset-icon-button" type="button" id="resetButton" aria-label="Сбросить параметры" title="Сбросить параметры">↺</button>
             <button class="primary-button generate-button" type="button" id="generateButton">Generate</button>
@@ -110,6 +92,6 @@
       </section>
     </main>
 
-    <script src="app.js?v=gallery-9" defer></script>
+    <script src="app.js?v=gallery-10" defer></script>
   </body>
 </html>
