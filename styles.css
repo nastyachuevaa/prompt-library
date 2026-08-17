@@ -127,6 +127,7 @@ h3 { margin: 0; font-size: 13px; }
 .brief-form, .settings-stack { display: grid; gap: 8px; }
 .brief-form { margin-top: 10px; }
 .field { display: grid; gap: 6px; margin: 0; padding: 0; border: 0; }
+.compact-select-field { width: min(240px, 100%); }
 .field span, legend { color: inherit; font-size: 12px; font-weight: 850; }
 .field-grid { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 10px; }
 input, select, textarea { width: 100%; border: 1px solid rgba(255,255,255,.17); border-radius: 9px; color: #f9f9fb; background: rgba(255,255,255,.08); outline: none; }

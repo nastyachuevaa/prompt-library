@@ -264,13 +264,13 @@ function renderTabs() {
 function renderAppearanceForm() {
   const values = state.values.appearance;
   return `
-    <fieldset class="field">
-      <legend>Пол</legend>
-      <div class="choice-row" data-field="gender">
-        <button class="choice-button" type="button" data-value="adult man" ${values.gender === "adult man" ? 'aria-pressed="true"' : ""}>Мужчина</button>
-        <button class="choice-button" type="button" data-value="adult woman" ${values.gender === "adult woman" ? 'aria-pressed="true"' : ""}>Женщина</button>
-      </div>
-    </fieldset>
+    <label class="field compact-select-field">
+      <span>Пол</span>
+      <select data-input="gender" aria-label="Пол">
+        <option value="adult man" ${values.gender === "adult man" ? "selected" : ""}>Мужчина</option>
+        <option value="adult woman" ${values.gender === "adult woman" ? "selected" : ""}>Женщина</option>
+      </select>
+    </label>
 
     <div class="field-grid">
       <label class="field">
@@ -342,13 +342,13 @@ function renderLiveopsForm() {
 function renderAvatarForm() {
   const values = state.values.avatars;
   return `
-    <fieldset class="field">
-      <legend>Пол</legend>
-      <div class="choice-row" data-field="gender">
-        <button class="choice-button" type="button" data-value="man" ${values.gender === "man" ? 'aria-pressed="true"' : ""}>Мужчина</button>
-        <button class="choice-button" type="button" data-value="woman" ${values.gender === "woman" ? 'aria-pressed="true"' : ""}>Женщина</button>
-      </div>
-    </fieldset>
+    <label class="field compact-select-field">
+      <span>Пол</span>
+      <select data-input="gender" aria-label="Пол">
+        <option value="man" ${values.gender === "man" ? "selected" : ""}>Мужчина</option>
+        <option value="woman" ${values.gender === "woman" ? "selected" : ""}>Женщина</option>
+      </select>
+    </label>
 
     <div class="field-grid">
       <label class="field">
@@ -901,6 +901,7 @@ function bindEvents() {
   });
 
   els.briefForm.addEventListener("input", handleFormInput);
+  els.briefForm.addEventListener("change", handleFormInput);
   els.briefForm.addEventListener("click", handleFormClick);
   els.resetButton.addEventListener("click", resetTask);
   els.copyPromptButton.addEventListener("click", (event) => {
