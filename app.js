@@ -754,8 +754,8 @@ async function removeBackground(index) {
     addGeneratedImages([data.image], `${image.modelLabel || "Image"} - без фона`, state.activeTask);
     setStatus("Готово: версия без фона добавлена", true);
   } catch (error) {
-    const message = error.message?.includes("Remove.bg key")
-      ? "Добавьте ключ remove.bg в Vercel"
+    const message = error.message?.includes("Atlas Cloud key")
+      ? "Добавьте ключ Atlas Cloud в Vercel"
       : error.message || "Не удалось убрать фон";
     setStatus(message, true);
   } finally {

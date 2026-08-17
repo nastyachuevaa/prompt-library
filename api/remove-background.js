@@ -4,7 +4,7 @@ const allowedOrigins = new Set([
   "http://localhost:4173",
 ]);
 
-const BLOB_API_URL = "https://vercel.com/api/blob";
+const ATLAS_BASE_URL = "https://api.atlascloud.ai/api/v1/model";
 
 function setCorsHeaders(req, res) {
   const origin = req.headers.origin;
@@ -20,26 +20,40 @@ function makeAbsoluteUrl(req, value) {
   return `${protocol}://${req.headers.host}${value}`;
 }
 
-async function saveResult(bytes) {
-  const token = process.env.BLOB_READ_WRITE_TOKEN;
-  if (!token) throw new Error("Image archive is not configured");
+function makeProxyImageUrl(sourceUrl) {
+  return `/api/image?file=${Buffer.from(sourceUrl).toString("base64url")}`;
+}
 
-  const pathname = `prompt-studio-cutouts/${Date.now()}-${Math.random().toString(36).slice(2, 10)}.png`;
-  const response = await fetch(`${BLOB_API_URL}/?${new URLSearchParams({ pathname })}`, {
-    method: "PUT",
-    body: bytes,
-    headers: {
-      "Authorization": `Bearer ${token}`,
-      "x-api-version": "12",
-      "x-vercel-blob-access": "public",
-      "x-add-random-suffix": "0",
-      "x-allow-overwrite": "0",
-      "x-content-type": "image/png",
-    },
+function getOutputUrl(data) {
+  const response = data?.data || data;
+  const candidates = [
+    ...(Array.isArray(response?.outputs) ? response.outputs : []),
+    ...(Array.isArray(response?.output) ? response.output : []),
+    ...(Array.isArray(response?.images) ? response.images : []),
+    response?.output?.image,
+  ];
+  return candidates
+    .map((item) => (typeof item === "string" ? item : item?.url || item?.image || item?.download_url || ""))
+    .find(Boolean) || "";
+}
+
+async function uploadSourceImage(apiKey, req, imageUrl) {
+  const source = await fetch(makeAbsoluteUrl(req, imageUrl));
+  if (!source.ok) throw new Error("Could not load the image");
+
+  const sourceType = source.headers.get("content-type")?.split(";")[0] || "image/png";
+  const form = new FormData();
+  form.append("file", new Blob([Buffer.from(await source.arrayBuffer())], { type: sourceType }), "generated-image.png");
+
+  const upload = await fetch(`${ATLAS_BASE_URL}/uploadMedia`, {
+    method: "POST",
+    headers: { "Authorization": `Bearer ${apiKey}` },
+    body: form,
   });
+  const data = await upload.json();
+  if (!upload.ok) throw new Error(data?.error || data?.message || "Could not upload the image to Atlas Cloud");
 
-  if (!response.ok) throw new Error("Could not save the cutout");
-  return response.json();
+  return data?.url || data?.data?.url || data?.data?.download_url || "";
 }
 
 module.exports = async function handler(req, res) {
@@ -47,8 +61,8 @@ module.exports = async function handler(req, res) {
   if (req.method === "OPTIONS") return res.status(204).end();
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
 
-  const apiKey = process.env.REMOVE_BG_API_KEY;
-  if (!apiKey) return res.status(500).json({ error: "Remove.bg key is not configured" });
+  const apiKey = process.env.ATLASCLOUD_API_KEY;
+  if (!apiKey) return res.status(500).json({ error: "Atlas Cloud key is not configured" });
 
   const imageUrl = typeof req.body?.imageUrl === "string" ? req.body.imageUrl : "";
   if (!imageUrl || !(/^(https?:\/\/)/.test(imageUrl) || imageUrl.startsWith("/api/image?file="))) {
@@ -56,30 +70,31 @@ module.exports = async function handler(req, res) {
   }
 
   try {
-    const source = await fetch(makeAbsoluteUrl(req, imageUrl));
-    if (!source.ok) throw new Error("Could not load the image");
-    const sourceType = source.headers.get("content-type")?.split(";")[0] || "image/png";
-    const sourceBytes = Buffer.from(await source.arrayBuffer());
-    const form = new FormData();
-    form.append("size", "auto");
-    form.append("format", "png");
-    form.append("image_file", new Blob([sourceBytes], { type: sourceType }), "generated-image.png");
+    const uploadedImageUrl = await uploadSourceImage(apiKey, req, imageUrl);
+    if (!uploadedImageUrl) throw new Error("Atlas Cloud did not return an upload URL");
 
-    const removed = await fetch("https://api.remove.bg/v1.0/removebg", {
+    const removed = await fetch(`${ATLAS_BASE_URL}/generateImage`, {
       method: "POST",
-      headers: { "X-Api-Key": apiKey },
-      body: form,
+      headers: {
+        "Authorization": `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "atlascloud/image-background-remover",
+        image: uploadedImageUrl,
+        enable_sync_mode: true,
+        enable_base64_output: false,
+      }),
     });
-    if (!removed.ok) {
-      const detail = await removed.text();
-      throw new Error(detail || "Remove.bg could not remove the background");
-    }
+    const data = await removed.json();
+    if (!removed.ok) throw new Error(data?.error || data?.message || data?.data?.error || "Atlas Cloud could not remove the background");
 
-    const blob = await saveResult(Buffer.from(await removed.arrayBuffer()));
+    const outputUrl = getOutputUrl(data);
+    if (!outputUrl) throw new Error("Atlas Cloud has not returned the cutout yet. Try again in a moment.");
     return res.status(200).json({
       image: {
-        url: blob.url,
-        sourceUrl: blob.url,
+        url: makeProxyImageUrl(outputUrl),
+        sourceUrl: outputUrl,
         mediaType: "image/png",
       },
     });
