@@ -739,6 +739,7 @@ async function removeBackground(index) {
   const image = getActiveResults()[index];
   const endpoint = getRemoveBackgroundEndpoint();
   if (!image || !endpoint || !["liveops", "avatars"].includes(state.activeTask)) return;
+  if (!window.confirm("Вырезание фона использует Atlas Cloud и стоит примерно $0.086 за изображение. Продолжить?")) return;
 
   state.removingUrls.add(image.url);
   setStatus("Убираем фон...", true);

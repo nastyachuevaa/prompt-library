@@ -129,10 +129,8 @@ module.exports = async function handler(req, res) {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "atlascloud/image-background-remover",
+        model: "youchuan/v8.1/remove-background",
         image: uploadedImageUrl,
-        prompt: "Remove the background completely and preserve the subject unchanged. Return a clean transparent PNG.",
-        enable_sync_mode: false,
         enable_base64_output: false,
       }),
     });
