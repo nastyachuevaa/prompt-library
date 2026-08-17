@@ -213,5 +213,9 @@ input:focus, select:focus, textarea:focus { border-color: rgba(193,143,255,.9); 
   .settings-panel { grid-template-rows: auto auto; }
   .field-grid, .palette-grid, .appearance-quick-fields, .liveops-options, .avatar-form-fields { grid-template-columns: 1fr; }
   .results-grid { gap: 3px; }
-  .result-actions { opacity: 1; transform: none; }
+  .result-actions { right: 6px; bottom: 6px; left: 6px; display: block; padding: 5px; border-radius: 12px; opacity: 1; transform: none; }
+  .result-actions span { display: none; }
+  .result-actions div { display: grid; width: 100%; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 5px; }
+  .result-actions div:has([data-remove-background]) [data-remove-background] { grid-column: 1 / -1; }
+  .result-actions .ghost-button { min-width: 0; min-height: 30px; padding: 0 7px; font-size: 11px; white-space: nowrap; }
 }
