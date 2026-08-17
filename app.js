@@ -307,21 +307,16 @@ function renderLiveopsForm() {
       <input data-input="subject" type="text" value="${escapeHTML(values.subject)}" placeholder="например, камера, подарок, молния" autocomplete="off" />
     </label>
 
-    <fieldset class="field">
-      <legend>Цвет</legend>
-      <div class="palette-grid">
-        ${PALETTES.map(
-          (palette) => `
-            <button class="palette-button" type="button" data-palette="${palette.id}" ${values.palette === palette.id ? 'aria-pressed="true"' : ""}>
-              <span class="palette-dot" style="background: ${palette.swatch}"></span>
-              <span>${palette.label}</span>
-            </button>
-          `,
-        ).join("")}
-      </div>
-    </fieldset>
-
-    <div class="field-grid">
+    <div class="liveops-options">
+      <label class="field">
+        <span>Цвет</span>
+        <select data-input="palette" aria-label="Цвет">
+          ${PALETTES.map(
+            (palette) => `<option value="${palette.id}" ${values.palette === palette.id ? "selected" : ""}>${palette.label}</option>`,
+          ).join("")}
+          <option value="custom" ${values.palette === "custom" ? "selected" : ""}>Свой цвет</option>
+        </select>
+      </label>
       <label class="field">
         <span>Свой цвет</span>
         <input data-input="customColor" type="text" value="${escapeHTML(values.customColor)}" placeholder="например, серебряный / лавандовый" autocomplete="off" />
@@ -396,15 +391,6 @@ function renderSettings() {
 
 function renderReferences() {
   const refs = state.references[state.activeTask];
-  if (state.activeTask === "liveops" && !refs.length) {
-    els.referenceList.innerHTML = `
-      <article class="reference-item fixed-reference">
-        <img src="assets/ref-camera.png" alt="LiveOps reference" />
-      </article>
-    `;
-    return;
-  }
-
   els.referenceList.innerHTML = refs.length
     ? refs
         .map(
@@ -866,6 +852,15 @@ function handleFormInput(event) {
   if (!input) return;
 
   state.values[state.activeTask][input.dataset.input] = input.value;
+  if (state.activeTask === "liveops" && input.dataset.input === "customColor" && input.value.trim()) {
+    state.values.liveops.palette = "custom";
+    const paletteSelect = els.briefForm.querySelector('[data-input="palette"]');
+    if (paletteSelect) paletteSelect.value = "custom";
+  }
+  if (state.activeTask === "liveops" && input.dataset.input === "palette" && input.value !== "custom") {
+    state.values.liveops.customColor = "";
+    renderForm();
+  }
   renderPromptPreview();
 }
 
@@ -879,13 +874,6 @@ function handleFormClick(event) {
     return;
   }
 
-  const palette = event.target.closest("[data-palette]");
-  if (palette) {
-    state.values.liveops.palette = palette.dataset.palette;
-    state.values.liveops.customColor = "";
-    renderForm();
-    renderPromptPreview();
-  }
 }
 
 function bindEvents() {
