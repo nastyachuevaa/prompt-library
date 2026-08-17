@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Prompt Studio</title>
-    <link rel="stylesheet" href="styles.css?v=gallery-7" />
+    <link rel="stylesheet" href="styles.css?v=gallery-8" />
   </head>
   <body>
     <main class="studio-shell" aria-label="Prompt Studio">
@@ -75,12 +75,13 @@
                 <span class="visually-hidden">Images</span>
                 <input id="countInput" type="number" min="1" max="4" value="2" aria-label="Количество изображений" />
               </label>
+            </div>
 
-              <details class="reference-box" aria-labelledby="referenceTitle">
-                <summary id="referenceTitle">Референсы</summary>
-                <div class="reference-popover">
+            <details class="reference-box" aria-labelledby="referenceTitle">
+              <summary id="referenceTitle">Референсы</summary>
+              <div class="reference-popover">
                 <div class="reference-header">
-                    <h3>Референсы</h3>
+                  <h3>Референсы</h3>
                   <button class="ghost-button compact" type="button" id="clearRefsButton">Очистить</button>
                 </div>
                 <label class="upload-zone" for="referenceInput">
@@ -88,20 +89,19 @@
                   <span>Добавить изображения</span>
                 </label>
                 <div class="reference-list" id="referenceList"></div>
-                </div>
-              </details>
+              </div>
+            </details>
 
-              <details class="prompt-preview">
-                <summary>Prompt</summary>
-                <div class="prompt-popover">
-                  <div class="reference-header">
-                    <h3>Prompt preview</h3>
-                    <button class="ghost-button compact" type="button" id="copyPromptButton">Копировать</button>
-                  </div>
-                  <textarea id="promptPreview" readonly aria-label="Prompt preview"></textarea>
+            <details class="prompt-preview">
+              <summary>Prompt</summary>
+              <div class="prompt-popover">
+                <div class="reference-header">
+                  <h3>Prompt preview</h3>
+                  <button class="ghost-button compact" type="button" id="copyPromptButton">Копировать</button>
                 </div>
-              </details>
-            </div>
+                <textarea id="promptPreview" readonly aria-label="Prompt preview"></textarea>
+              </div>
+            </details>
 
             <button class="reset-icon-button" type="button" id="resetButton" aria-label="Сбросить параметры" title="Сбросить параметры">↺</button>
             <button class="primary-button generate-button" type="button" id="generateButton">Generate</button>
@@ -110,6 +110,6 @@
       </section>
     </main>
 
-    <script src="app.js?v=gallery-7" defer></script>
+    <script src="app.js?v=gallery-8" defer></script>
   </body>
 </html>
