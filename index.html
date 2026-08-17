@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Prompt Studio</title>
-    <link rel="stylesheet" href="styles.css?v=gallery-6" />
+    <link rel="stylesheet" href="styles.css?v=gallery-7" />
   </head>
   <body>
     <main class="studio-shell" aria-label="Prompt Studio">
@@ -43,55 +43,44 @@
 
         <section class="composer" aria-label="Параметры генерации">
           <section class="brief-panel" aria-labelledby="taskTitle">
-            <div class="panel-heading">
+            <div class="visually-hidden">
               <div>
                 <p class="eyebrow" id="taskModelLabel">Nano Banana</p>
                 <h2 id="taskTitle">NB Appearance Options</h2>
               </div>
-              <button class="ghost-button compact" type="button" id="resetButton">Сбросить</button>
             </div>
 
             <form class="brief-form" id="briefForm"></form>
-
-            <details class="prompt-preview">
-              <summary>
-                <span>Prompt preview</span>
-                <button class="ghost-button compact" type="button" id="copyPromptButton">Копировать</button>
-              </summary>
-              <textarea id="promptPreview" readonly aria-label="Prompt preview"></textarea>
-            </details>
           </section>
 
           <aside class="settings-panel" aria-labelledby="settingsTitle">
-            <div class="panel-heading compact-heading">
-              <h2 id="settingsTitle">Generate</h2>
-              <p class="status-text" id="statusText" aria-live="polite"></p>
-            </div>
+            <h2 id="settingsTitle" class="visually-hidden">Generate</h2>
+            <p class="status-text" id="statusText" aria-live="polite"></p>
 
-            <div class="settings-stack">
-              <label class="field">
-                <span>Model</span>
+            <div class="settings-stack compact-controls">
+              <label class="field toolbar-control model-control">
+                <span class="visually-hidden">Model</span>
                 <select id="modelSelect" aria-label="Model"></select>
               </label>
 
-              <div class="settings-row generation-options">
-                <label class="field">
-                  <span>Формат</span>
-                  <select id="aspectSelect" aria-label="Формат кадра"></select>
-                </label>
-                <label class="field">
-                  <span>Качество</span>
-                  <select id="resolutionSelect" aria-label="Качество изображения"></select>
-                </label>
-                <label class="field count-field">
-                  <span>Images</span>
-                  <input id="countInput" type="number" min="1" max="4" value="2" />
-                </label>
-              </div>
+              <label class="field toolbar-control">
+                <span class="visually-hidden">Формат</span>
+                <select id="aspectSelect" aria-label="Формат кадра"></select>
+              </label>
+              <label class="field toolbar-control">
+                <span class="visually-hidden">Качество</span>
+                <select id="resolutionSelect" aria-label="Качество изображения"></select>
+              </label>
+              <label class="field toolbar-control count-field">
+                <span class="visually-hidden">Images</span>
+                <input id="countInput" type="number" min="1" max="4" value="2" aria-label="Количество изображений" />
+              </label>
 
-              <section class="reference-box" aria-labelledby="referenceTitle">
+              <details class="reference-box" aria-labelledby="referenceTitle">
+                <summary id="referenceTitle">Референсы</summary>
+                <div class="reference-popover">
                 <div class="reference-header">
-                  <h3 id="referenceTitle">References</h3>
+                    <h3>Референсы</h3>
                   <button class="ghost-button compact" type="button" id="clearRefsButton">Очистить</button>
                 </div>
                 <label class="upload-zone" for="referenceInput">
@@ -99,15 +88,28 @@
                   <span>Добавить изображения</span>
                 </label>
                 <div class="reference-list" id="referenceList"></div>
-              </section>
+                </div>
+              </details>
+
+              <details class="prompt-preview">
+                <summary>Prompt</summary>
+                <div class="prompt-popover">
+                  <div class="reference-header">
+                    <h3>Prompt preview</h3>
+                    <button class="ghost-button compact" type="button" id="copyPromptButton">Копировать</button>
+                  </div>
+                  <textarea id="promptPreview" readonly aria-label="Prompt preview"></textarea>
+                </div>
+              </details>
             </div>
 
+            <button class="reset-icon-button" type="button" id="resetButton" aria-label="Сбросить параметры" title="Сбросить параметры">↺</button>
             <button class="primary-button generate-button" type="button" id="generateButton">Generate</button>
           </aside>
         </section>
       </section>
     </main>
 
-    <script src="app.js?v=gallery-6" defer></script>
+    <script src="app.js?v=gallery-7" defer></script>
   </body>
 </html>
