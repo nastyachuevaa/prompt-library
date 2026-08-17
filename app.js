@@ -293,12 +293,8 @@ function renderSeedreamForm() {
   const values = state.values.seedream;
   return `
     <label class="field">
-      <span>Идея сцены</span>
-      <textarea class="compact-description" data-input="idea" rows="3" placeholder="например, девушка смеется в лифте, кадр будто снят случайно">${escapeHTML(values.idea)}</textarea>
-    </label>
-    <label class="field">
-      <span>Дополнительно</span>
-      <input data-input="extra" type="text" value="${escapeHTML(values.extra)}" placeholder="одежда, место, эмоция, запреты" autocomplete="off" />
+      <span>Описание сцены</span>
+      <textarea class="compact-description" data-input="idea" rows="3" placeholder="сцена, человек, одежда, место, эмоция, детали и запреты">${escapeHTML(values.idea)}</textarea>
     </label>
   `;
 }
@@ -524,8 +520,7 @@ function makeAppearancePrompt() {
 function makeSeedreamPrompt() {
   const values = state.values.seedream;
   const idea = values.idea.trim() || "a candid everyday moment with a person caught mid-emotion";
-  const extra = values.extra.trim() ? ` ${values.extra.trim()}` : "";
-  return `${SEEDREAM_PREFIX} ${idea}${extra}`;
+  return `${SEEDREAM_PREFIX} ${idea}`;
 }
 
 function makeLiveopsPrompt() {
