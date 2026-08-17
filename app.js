@@ -52,7 +52,7 @@ const TASKS = [
   },
 ];
 
-const ASPECTS = ["1:1", "3:4", "4:5", "9:16", "16:9"];
+const ASPECTS = ["auto", "1:1", "3:4", "4:3", "2:3", "3:2", "9:16", "16:9", "5:4", "4:5", "21:9"];
 const RESOLUTIONS = ["1K", "2K", "4K"];
 const POLL_INTERVAL_MS = 3000;
 const GENERATION_TIMEOUT_MS = 300000;
@@ -372,7 +372,7 @@ function renderSettings() {
   els.modelSelect.disabled = task.modelOptions.length === 1;
 
   els.aspectSelect.innerHTML = ASPECTS.map(
-    (aspect) => `<option value="${aspect}" ${settings.aspect === aspect ? "selected" : ""}>${aspect}</option>`,
+    (aspect) => `<option value="${aspect}" ${settings.aspect === aspect ? "selected" : ""}>${aspect === "auto" ? "Авто" : aspect}</option>`,
   ).join("");
 
   els.resolutionSelect.innerHTML = resolutionOptions.map(

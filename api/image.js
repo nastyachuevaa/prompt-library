@@ -27,7 +27,7 @@ const atlasModels = {
   },
 };
 
-const allowedAspectRatios = new Set(["1:1", "3:4", "4:5", "9:16", "16:9"]);
+const allowedAspectRatios = new Set(["auto", "1:1", "3:4", "4:3", "2:3", "3:2", "9:16", "16:9", "5:4", "4:5", "21:9"]);
 const allowedResolutions = new Set(["1K", "2K", "4K"]);
 const completedStatuses = new Set(["completed", "succeeded", "success", "done"]);
 const failedStatuses = new Set(["failed", "error", "timeout", "canceled", "cancelled"]);
@@ -103,23 +103,38 @@ function makeGptSize(aspectRatio, resolution) {
     "1K": {
       "1:1": "1024x1024",
       "3:4": "768x1024",
+      "4:3": "1024x768",
+      "2:3": "768x1152",
+      "3:2": "1152x768",
       "4:5": "1024x1536",
       "9:16": "1024x1536",
       "16:9": "1536x1024",
+      "5:4": "1280x1024",
+      "21:9": "1536x658",
     },
     "2K": {
       "1:1": "2048x2048",
       "3:4": "2160x2880",
+      "4:3": "2880x2160",
+      "2:3": "1920x2880",
+      "3:2": "2880x1920",
       "4:5": "2160x2880",
       "9:16": "1152x2048",
       "16:9": "2048x1152",
+      "5:4": "2560x2048",
+      "21:9": "2560x1097",
     },
     "4K": {
       "1:1": "2048x2048",
       "3:4": "2160x2880",
+      "4:3": "2880x2160",
+      "2:3": "2880x4320",
+      "3:2": "4320x2880",
       "4:5": "2160x2880",
       "9:16": "2160x3840",
       "16:9": "3840x2160",
+      "5:4": "3840x3072",
+      "21:9": "4096x1755",
     },
   };
 
@@ -132,16 +147,26 @@ function makeSeedreamSize(aspectRatio, resolution) {
     "2K": {
       "1:1": "2048*2048",
       "3:4": "1728*2304",
+      "4:3": "2304*1728",
+      "2:3": "1536*2304",
+      "3:2": "2304*1536",
       "4:5": "1664*2496",
       "9:16": "1600*2848",
       "16:9": "2848*1600",
+      "5:4": "2304*1840",
+      "21:9": "3008*1288",
     },
     "4K": {
       "1:1": "4096*4096",
       "3:4": "3520*4704",
+      "4:3": "4704*3520",
+      "2:3": "3136*4704",
+      "3:2": "4704*3136",
       "4:5": "3328*4992",
       "9:16": "3040*5504",
       "16:9": "5504*3040",
+      "5:4": "4608*3688",
+      "21:9": "4096*1755",
     },
   };
 
@@ -163,7 +188,7 @@ function buildAtlasPayload({ modelConfig, prompt, aspectRatio, resolution, uploa
   }
 
   if (modelConfig.kind === "gpt") {
-    payload.size = makeGptSize(aspectRatio, resolution);
+    payload.size = makeGptSize(aspectRatio === "auto" ? "1:1" : aspectRatio, resolution);
     payload.quality = "medium";
     payload.output_format = "jpeg";
     payload.moderation = "low";
@@ -171,11 +196,11 @@ function buildAtlasPayload({ modelConfig, prompt, aspectRatio, resolution, uploa
   }
 
   if (modelConfig.kind === "seedream") {
-    payload.size = makeSeedreamSize(aspectRatio, resolution);
+    payload.size = makeSeedreamSize(aspectRatio === "auto" ? "1:1" : aspectRatio, resolution);
     return payload;
   }
 
-  payload.aspect_ratio = aspectRatio;
+  if (aspectRatio !== "auto") payload.aspect_ratio = aspectRatio;
   payload.resolution = resolution.toLowerCase();
   payload.output_format = "png";
   payload.media_resolution = "default";
