@@ -26,14 +26,18 @@ function makeProxyImageUrl(sourceUrl) {
 
 function getOutputUrl(data) {
   const response = data?.data || data;
+  const urls = response?.urls && typeof response.urls === "object"
+    ? Object.values(response.urls).flatMap((value) => Array.isArray(value) ? value : [value])
+    : [];
   const candidates = [
     ...(Array.isArray(response?.outputs) ? response.outputs : []),
     ...(Array.isArray(response?.output) ? response.output : []),
     ...(Array.isArray(response?.images) ? response.images : []),
+    ...urls,
     response?.output?.image,
   ];
   return candidates
-    .map((item) => (typeof item === "string" ? item : item?.url || item?.image || item?.download_url || ""))
+    .map((item) => (typeof item === "string" ? item : item?.url || item?.image || item?.download_url || item?.output_url || ""))
     .find(Boolean) || "";
 }
 
