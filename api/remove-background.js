@@ -63,6 +63,14 @@ function formatResult(data) {
   };
 }
 
+function getAtlasError(data, fallback) {
+  const detail = data?.error || data?.message || data?.data?.error || data?.data?.message || data?.detail;
+  if (typeof detail === "string" && detail) return detail;
+  if (detail && typeof detail === "object") return JSON.stringify(detail);
+  if (data && typeof data === "object") return JSON.stringify(data);
+  return fallback;
+}
+
 async function uploadSourceImage(apiKey, req, imageUrl) {
   const source = await fetch(makeAbsoluteUrl(req, imageUrl));
   if (!source.ok) throw new Error("Could not load the image");
@@ -77,7 +85,7 @@ async function uploadSourceImage(apiKey, req, imageUrl) {
     body: form,
   });
   const data = await upload.json();
-  if (!upload.ok) throw new Error(data?.error || data?.message || "Could not upload the image to Atlas Cloud");
+  if (!upload.ok) throw new Error(getAtlasError(data, "Could not upload the image to Atlas Cloud"));
 
   return data?.url || data?.data?.url || data?.data?.download_url || "";
 }
@@ -98,7 +106,7 @@ module.exports = async function handler(req, res) {
         headers: { "Authorization": `Bearer ${apiKey}` },
       });
       const data = await polled.json();
-      if (!polled.ok) throw new Error(data?.error || data?.message || "Atlas Cloud polling failed");
+      if (!polled.ok) throw new Error(getAtlasError(data, "Atlas Cloud polling failed"));
       return res.status(200).json(formatResult(data));
     } catch (error) {
       return res.status(500).json({ error: error.message || "Could not check the cutout" });
@@ -123,12 +131,13 @@ module.exports = async function handler(req, res) {
       body: JSON.stringify({
         model: "atlascloud/image-background-remover",
         image: uploadedImageUrl,
+        prompt: "Remove the background completely and preserve the subject unchanged. Return a clean transparent PNG.",
         enable_sync_mode: false,
         enable_base64_output: false,
       }),
     });
     const data = await removed.json();
-    if (!removed.ok) throw new Error(data?.error || data?.message || data?.data?.error || "Atlas Cloud could not remove the background");
+    if (!removed.ok) throw new Error(getAtlasError(data, "Atlas Cloud could not remove the background"));
 
     return res.status(200).json(formatResult(data));
   } catch (error) {
