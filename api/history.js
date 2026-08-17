@@ -147,14 +147,15 @@ module.exports = async function handler(req, res) {
     if (req.body?.action === "save") {
       const images = Array.isArray(req.body?.images) ? req.body.images.slice(0, MAX_IMAGES_PER_REQUEST) : [];
       const saved = [];
+      const errors = [];
       for (const image of images) {
         try {
           saved.push(await archiveImage(req, taskId, image));
-        } catch {
-          // A failed archive should never remove a usable image from the visible gallery.
+        } catch (error) {
+          errors.push(error.message || "Could not archive generated image");
         }
       }
-      return res.status(200).json({ enabled: true, images: saved });
+      return res.status(200).json({ enabled: true, images: saved, errors });
     }
 
     if (req.body?.action === "delete") {

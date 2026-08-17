@@ -644,7 +644,7 @@ function wait(ms) {
   });
 }
 
-function addGeneratedImages(images, modelLabel, taskId = state.activeTask) {
+async function addGeneratedImages(images, modelLabel, taskId = state.activeTask) {
   const results = state.histories[taskId] || [];
   const existingUrls = new Set(results.map((image) => image.url));
   const nextImages = (images || [])
@@ -657,20 +657,22 @@ function addGeneratedImages(images, modelLabel, taskId = state.activeTask) {
       createdAt: new Date().toISOString(),
     }));
 
-  if (!nextImages.length) return;
+  if (!nextImages.length) return { addedCount: 0, savedCount: 0 };
 
   state.histories[taskId] = [...nextImages, ...results].slice(0, MAX_HISTORY_ITEMS);
   if (taskId === state.activeTask) {
     state.results = state.histories[taskId];
   }
   saveHistories(state.histories);
-  persistImages(taskId, nextImages);
+  const archive = await persistImages(taskId, nextImages);
 
   if (taskId === state.activeTask) {
     window.requestAnimationFrame(() => {
       els.resultsGrid?.scrollIntoView({ behavior: "smooth", block: "start" });
     });
   }
+
+  return { addedCount: nextImages.length, ...archive };
 }
 
 function removeResultByUrl(url, taskId = state.activeTask) {
@@ -704,7 +706,7 @@ function mergeHistoryImages(taskId, images) {
 
 async function persistImages(taskId, images) {
   const endpoint = getHistoryEndpoint();
-  if (!endpoint || !images.length) return;
+  if (!endpoint || !images.length) return { savedCount: 0 };
 
   try {
     const response = await fetch(endpoint, {
@@ -712,16 +714,17 @@ async function persistImages(taskId, images) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: "save", taskId, images }),
     });
-    if (!response.ok) return;
+    if (!response.ok) return { savedCount: 0 };
     const data = await response.json();
-    if (!data.images?.length) return;
+    if (!data.images?.length) return { savedCount: 0 };
     const savedBySource = new Map(data.images.map((image) => [image.sourceUrl, normalizeSavedImage(image)]));
     state.histories[taskId] = (state.histories[taskId] || []).map((image) => savedBySource.get(image.sourceUrl || image.url) || image);
     if (taskId === state.activeTask) state.results = state.histories[taskId];
     saveHistories(state.histories);
     if (taskId === state.activeTask) renderResults();
+    return { savedCount: data.images.length };
   } catch {
-    // Local history remains available when the archive is temporarily unavailable.
+    return { savedCount: 0 };
   }
 }
 
@@ -775,8 +778,11 @@ async function removeBackground(index) {
     }
 
     if (!data.image) throw new Error("Atlas Cloud пока не вернул версию без фона. Попробуйте еще раз.");
-    addGeneratedImages([data.image], `${image.modelLabel || "Image"} - без фона`, state.activeTask);
-    setStatus("Готово: версия без фона добавлена", true);
+    const result = await addGeneratedImages([data.image], `${image.modelLabel || "Image"} - без фона`, state.activeTask);
+    if (result.savedCount < result.addedCount) {
+      throw new Error("Версия без фона создана, но не сохранилась в галерее. Списание можно проверить в Atlas Cloud.");
+    }
+    setStatus("Готово: версия без фона сохранена в галерее", true);
   } catch (error) {
     const message = error.message?.includes("Atlas Cloud key")
       ? "Добавьте ключ Atlas Cloud в Vercel"
