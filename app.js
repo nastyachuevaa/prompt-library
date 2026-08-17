@@ -187,6 +187,7 @@ const state = {
   gallerySize: loadGallerySize(),
   selectedUrls: new Set(),
   remoteHistoryLoaded: new Set(),
+  removingUrls: new Set(),
 };
 
 const referenceCache = new Map();
@@ -438,6 +439,8 @@ function renderResultCards(results = getActiveResults()) {
     .map(
       (image, index) => {
         const isSelected = state.selectedUrls.has(image.url);
+        const canRemoveBackground = ["liveops", "avatars"].includes(state.activeTask);
+        const isRemoving = state.removingUrls.has(image.url);
         return `
         <article class="result-card ${isSelected ? "is-selected" : ""}">
           <button class="select-image-button" type="button" data-select-image="${index}" aria-label="${isSelected ? "Снять выделение" : "Выделить изображение"}" aria-pressed="${isSelected}" title="${isSelected ? "Снять выделение" : "Выделить изображение"}">${isSelected ? "✓" : ""}</button>
@@ -445,6 +448,7 @@ function renderResultCards(results = getActiveResults()) {
           <div class="result-actions">
             <span>${escapeHTML(image.modelLabel || "Image")}</span>
             <div>
+              ${canRemoveBackground ? `<button class="ghost-button compact" type="button" data-remove-background="${index}" ${isRemoving ? "disabled" : ""}>${isRemoving ? "Вырезаем..." : "Убрать фон"}</button>` : ""}
               <button class="ghost-button compact" type="button" data-copy-image="${index}">Copy</button>
               <a class="ghost-button compact" href="${escapeHTML(image.url)}" download="prompt-studio-${index + 1}.png">Download</a>
             </div>
@@ -544,6 +548,10 @@ function getImageEndpoint() {
 
 function getHistoryEndpoint() {
   return getImageEndpoint() ? "/api/history" : "";
+}
+
+function getRemoveBackgroundEndpoint() {
+  return getImageEndpoint() ? "/api/remove-background" : "";
 }
 
 function validateBeforeGenerate() {
@@ -724,6 +732,35 @@ async function deletePersistedImages(taskId, images) {
     });
   } catch {
     // The visible deletion is already complete.
+  }
+}
+
+async function removeBackground(index) {
+  const image = getActiveResults()[index];
+  const endpoint = getRemoveBackgroundEndpoint();
+  if (!image || !endpoint || !["liveops", "avatars"].includes(state.activeTask)) return;
+
+  state.removingUrls.add(image.url);
+  setStatus("Убираем фон...", true);
+  renderResults();
+  try {
+    const response = await fetch(endpoint, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ imageUrl: image.url }),
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data?.error || "Не удалось убрать фон");
+    addGeneratedImages([data.image], `${image.modelLabel || "Image"} - без фона`, state.activeTask);
+    setStatus("Готово: версия без фона добавлена", true);
+  } catch (error) {
+    const message = error.message?.includes("Remove.bg key")
+      ? "Добавьте ключ remove.bg в Vercel"
+      : error.message || "Не удалось убрать фон";
+    setStatus(message, true);
+  } finally {
+    state.removingUrls.delete(image.url);
+    renderResults();
   }
 }
 
@@ -1013,6 +1050,12 @@ function bindEvents() {
       if (state.selectedUrls.has(image.url)) state.selectedUrls.delete(image.url);
       else state.selectedUrls.add(image.url);
       renderResults();
+      return;
+    }
+
+    const removeBackgroundButton = event.target.closest("[data-remove-background]");
+    if (removeBackgroundButton) {
+      removeBackground(Number(removeBackgroundButton.dataset.removeBackground));
       return;
     }
 
