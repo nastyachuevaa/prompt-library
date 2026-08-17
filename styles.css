@@ -130,6 +130,7 @@ h3 { margin: 0; font-size: 13px; }
 .compact-select-field { width: min(240px, 100%); }
 .field span, legend { color: inherit; font-size: 12px; font-weight: 850; }
 .field-grid { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 10px; }
+.appearance-quick-fields { display: grid; grid-template-columns: 150px 130px minmax(0, 1fr); gap: 10px; }
 input, select, textarea { width: 100%; border: 1px solid rgba(255,255,255,.17); border-radius: 9px; color: #f9f9fb; background: rgba(255,255,255,.08); outline: none; }
 input, select { min-height: 40px; padding: 0 12px; }
 textarea { min-height: 58px; padding: 8px 12px; resize: vertical; line-height: 1.4; }
@@ -186,7 +187,7 @@ input:focus, select:focus, textarea:focus { border-color: rgba(193,143,255,.9); 
   .delete-selected-button { min-height: 30px; padding: 0 9px; font-size: 11px; }
   .composer { right: 7px; bottom: 7px; left: 7px; border-radius: 16px; }
   .brief-panel, .settings-panel { padding: 14px; }
-  .field-grid, .palette-grid { grid-template-columns: 1fr; }
+  .field-grid, .palette-grid, .appearance-quick-fields { grid-template-columns: 1fr; }
   .results-grid { gap: 3px; }
   .result-actions { opacity: 1; transform: none; }
 }

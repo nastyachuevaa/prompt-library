@@ -264,15 +264,14 @@ function renderTabs() {
 function renderAppearanceForm() {
   const values = state.values.appearance;
   return `
-    <label class="field compact-select-field">
-      <span>Пол</span>
-      <select data-input="gender" aria-label="Пол">
-        <option value="adult man" ${values.gender === "adult man" ? "selected" : ""}>Мужчина</option>
-        <option value="adult woman" ${values.gender === "adult woman" ? "selected" : ""}>Женщина</option>
-      </select>
-    </label>
-
-    <div class="field-grid">
+    <div class="appearance-quick-fields">
+      <label class="field compact-select-field">
+        <span>Пол</span>
+        <select data-input="gender" aria-label="Пол">
+          <option value="adult man" ${values.gender === "adult man" ? "selected" : ""}>Мужчина</option>
+          <option value="adult woman" ${values.gender === "adult woman" ? "selected" : ""}>Женщина</option>
+        </select>
+      </label>
       <label class="field">
         <span>Возраст</span>
         <input data-input="age" type="text" value="${escapeHTML(values.age)}" placeholder="например, 28-30" autocomplete="off" />
