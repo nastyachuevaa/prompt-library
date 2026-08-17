@@ -125,7 +125,7 @@ h3 { margin: 0; font-size: 13px; }
 .ghost-button { background: rgba(255,255,255,.04); color: inherit; border-color: rgba(255,255,255,.22); }
 .ghost-button.compact { min-height: 29px; padding: 0 10px; font-size: 11px; }
 .primary-button { border-color: transparent; color: white; background: linear-gradient(135deg, var(--accent), var(--accent-2)); }
-.generate-button { flex: 0 0 auto; min-height: 42px; width: 150px; margin: 0; font-size: 14px; }
+.generate-button { flex: 0 0 auto; min-height: 42px; width: 150px; margin: 0; border: 0; border-radius: var(--pill); color: #fff; appearance: none; -webkit-appearance: none; background: linear-gradient(90deg, #8b36ef 0%, #d83ecb 100%); box-shadow: none; font-size: 14px; outline: 0; }
 .reset-icon-button { display: grid; flex: 0 0 34px; width: 34px; height: 34px; place-items: center; border: 1px solid rgba(255,255,255,.24); border-radius: var(--pill); color: #d8dce7; background: rgba(255,255,255,.05); font-size: 18px; }
 
 .brief-form, .settings-stack { display: grid; gap: 7px; }
