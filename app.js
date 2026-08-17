@@ -314,7 +314,6 @@ function renderLiveopsForm() {
           ${PALETTES.map(
             (palette) => `<option value="${palette.id}" ${values.palette === palette.id ? "selected" : ""}>${palette.label}</option>`,
           ).join("")}
-          <option value="custom" ${values.palette === "custom" ? "selected" : ""}>Свой цвет</option>
         </select>
       </label>
       <label class="field">
@@ -847,12 +846,7 @@ function handleFormInput(event) {
   if (!input) return;
 
   state.values[state.activeTask][input.dataset.input] = input.value;
-  if (state.activeTask === "liveops" && input.dataset.input === "customColor" && input.value.trim()) {
-    state.values.liveops.palette = "custom";
-    const paletteSelect = els.briefForm.querySelector('[data-input="palette"]');
-    if (paletteSelect) paletteSelect.value = "custom";
-  }
-  if (state.activeTask === "liveops" && input.dataset.input === "palette" && input.value !== "custom") {
+  if (state.activeTask === "liveops" && input.dataset.input === "palette") {
     state.values.liveops.customColor = "";
     renderForm();
   }
