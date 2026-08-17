@@ -665,6 +665,12 @@ function addGeneratedImages(images, modelLabel, taskId = state.activeTask) {
   }
   saveHistories(state.histories);
   persistImages(taskId, nextImages);
+
+  if (taskId === state.activeTask) {
+    window.requestAnimationFrame(() => {
+      els.resultsGrid?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  }
 }
 
 function removeResultByUrl(url, taskId = state.activeTask) {

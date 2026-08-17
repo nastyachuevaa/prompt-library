@@ -21,6 +21,7 @@ function makeAbsoluteUrl(req, value) {
 }
 
 function makeProxyImageUrl(sourceUrl) {
+  if (sourceUrl.startsWith("data:image/")) return sourceUrl;
   return `/api/image?file=${Buffer.from(sourceUrl).toString("base64url")}`;
 }
 
@@ -49,13 +50,16 @@ function getPredictionId(data) {
 function formatResult(data) {
   const response = data?.data || data;
   const outputUrl = getOutputUrl(data);
+  const imageUrl = outputUrl && (outputUrl.startsWith("data:image/") || outputUrl.startsWith("https://"))
+    ? makeProxyImageUrl(outputUrl)
+    : "";
   return {
     predictionId: getPredictionId(data),
     status: response?.status || (outputUrl ? "completed" : "processing"),
     error: response?.error || "",
-    image: outputUrl
+    image: imageUrl
       ? {
-          url: makeProxyImageUrl(outputUrl),
+          url: imageUrl,
           sourceUrl: outputUrl,
           mediaType: "image/png",
         }
