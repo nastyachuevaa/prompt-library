@@ -193,6 +193,7 @@ const els = {
   taskModelLabel: document.querySelector("#taskModelLabel"),
   taskTitle: document.querySelector("#taskTitle"),
   briefForm: document.querySelector("#briefForm"),
+  resetButton: document.querySelector("#resetButton"),
   promptPreview: document.querySelector("#promptPreview"),
   copyPromptButton: document.querySelector("#copyPromptButton"),
   modelSelect: document.querySelector("#modelSelect"),
@@ -900,6 +901,7 @@ function bindEvents() {
 
   els.briefForm.addEventListener("input", handleFormInput);
   els.briefForm.addEventListener("change", handleFormInput);
+  els.resetButton.addEventListener("click", resetTask);
   els.briefForm.addEventListener("click", handleFormClick);
   if (els.copyPromptButton) {
     els.copyPromptButton.addEventListener("click", (event) => {
