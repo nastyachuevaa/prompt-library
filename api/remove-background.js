@@ -84,6 +84,7 @@ async function archiveResult(apiKey, outputUrl, taskId, modelLabel) {
     if (!response.ok) throw new Error("Could not load the cutout from Atlas Cloud");
     bytes = Buffer.from(await response.arrayBuffer());
     mediaType = response.headers.get("content-type")?.split(";")[0] || "image/png";
+    if (!mediaType.startsWith("image/")) throw new Error("Atlas Cloud did not return an image file");
   }
 
   const id = createEntryId();
@@ -107,18 +108,15 @@ async function archiveResult(apiKey, outputUrl, taskId, modelLabel) {
 
 function getOutputUrl(data) {
   const response = data?.data || data;
-  const urls = response?.urls && typeof response.urls === "object"
-    ? Object.values(response.urls).flatMap((value) => Array.isArray(value) ? value : [value])
-    : [];
   const candidates = [
     ...(Array.isArray(response?.outputs) ? response.outputs : []),
     ...(Array.isArray(response?.output) ? response.output : []),
     ...(Array.isArray(response?.images) ? response.images : []),
-    ...urls,
     response?.output?.image,
   ];
   return candidates
     .map((item) => (typeof item === "string" ? item : item?.url || item?.image || item?.download_url || item?.output_url || ""))
+    .filter((item) => item.startsWith("data:image/") || (item.startsWith("https://") && !item.includes("/prediction/")))
     .find(Boolean) || "";
 }
 
