@@ -5,6 +5,8 @@ const allowedOrigins = new Set([
 ]);
 
 const ATLAS_BASE_URL = "https://api.atlascloud.ai/api/v1/model";
+const BLOB_API_URL = "https://vercel.com/api/blob";
+const HISTORY_ROOT = "prompt-studio-history";
 
 function setCorsHeaders(req, res) {
   const origin = req.headers.origin;
@@ -23,6 +25,84 @@ function makeAbsoluteUrl(req, value) {
 function makeProxyImageUrl(sourceUrl) {
   if (sourceUrl.startsWith("data:image/")) return sourceUrl;
   return `/api/image?file=${Buffer.from(sourceUrl).toString("base64url")}`;
+}
+
+function getTaskId(value) {
+  return ["liveops", "avatars"].includes(value) ? value : "liveops";
+}
+
+function parseImageDataUrl(value) {
+  const match = typeof value === "string" && value.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/);
+  if (!match) return null;
+  return { mediaType: match[1], bytes: Buffer.from(match[2], "base64") };
+}
+
+function safeFileExtension(mediaType) {
+  if (mediaType === "image/jpeg") return "jpg";
+  if (mediaType === "image/webp") return "webp";
+  return "png";
+}
+
+function createEntryId() {
+  return `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+async function putBlob(pathname, body, contentType) {
+  const token = process.env.BLOB_READ_WRITE_TOKEN;
+  if (!token) throw new Error("Image archive is not configured");
+  const params = new URLSearchParams({ pathname });
+  const response = await fetch(`${BLOB_API_URL}/?${params.toString()}`, {
+    method: "PUT",
+    headers: {
+      "x-api-version": "12",
+      "Authorization": `Bearer ${token}`,
+      "x-vercel-blob-access": "public",
+      "x-add-random-suffix": "0",
+      "x-allow-overwrite": "0",
+      "x-content-type": contentType,
+    },
+    body,
+  });
+  const data = await response.json();
+  if (!response.ok) throw new Error(getAtlasError(data, "Could not save the image archive"));
+  return data;
+}
+
+async function archiveResult(apiKey, outputUrl, taskId, modelLabel) {
+  const embeddedImage = parseImageDataUrl(outputUrl);
+  let bytes;
+  let mediaType;
+
+  if (embeddedImage) {
+    bytes = embeddedImage.bytes;
+    mediaType = embeddedImage.mediaType;
+  } else {
+    const headers = new URL(outputUrl).hostname.endsWith("atlascloud.ai")
+      ? { "Authorization": `Bearer ${apiKey}` }
+      : {};
+    const response = await fetch(outputUrl, { headers });
+    if (!response.ok) throw new Error("Could not load the cutout from Atlas Cloud");
+    bytes = Buffer.from(await response.arrayBuffer());
+    mediaType = response.headers.get("content-type")?.split(";")[0] || "image/png";
+  }
+
+  const id = createEntryId();
+  const imageBlob = await putBlob(
+    `${HISTORY_ROOT}/${taskId}/images/${id}.${safeFileExtension(mediaType)}`,
+    bytes,
+    mediaType,
+  );
+  const entry = {
+    id,
+    taskId,
+    url: imageBlob.url,
+    sourceUrl: imageBlob.url,
+    mediaType,
+    modelLabel: `${modelLabel} - без фона`,
+    createdAt: new Date().toISOString(),
+  };
+  await putBlob(`${HISTORY_ROOT}/${taskId}/entries/${id}.json`, JSON.stringify(entry), "application/json");
+  return entry;
 }
 
 function getOutputUrl(data) {
@@ -47,23 +127,18 @@ function getPredictionId(data) {
   return response?.id || response?.prediction_id || response?.predictionId || response?.request_id || "";
 }
 
-function formatResult(data) {
+async function formatResult(apiKey, data, taskId, modelLabel) {
   const response = data?.data || data;
   const outputUrl = getOutputUrl(data);
   const imageUrl = outputUrl && (outputUrl.startsWith("data:image/") || outputUrl.startsWith("https://"))
     ? makeProxyImageUrl(outputUrl)
     : "";
+  const image = imageUrl ? await archiveResult(apiKey, outputUrl, taskId, modelLabel) : null;
   return {
     predictionId: getPredictionId(data),
     status: response?.status || (outputUrl ? "completed" : "processing"),
     error: response?.error || "",
-    image: imageUrl
-      ? {
-          url: imageUrl,
-          sourceUrl: outputUrl,
-          mediaType: "image/png",
-        }
-      : null,
+    image,
   };
 }
 
@@ -111,13 +186,15 @@ module.exports = async function handler(req, res) {
       });
       const data = await polled.json();
       if (!polled.ok) throw new Error(getAtlasError(data, "Atlas Cloud polling failed"));
-      return res.status(200).json(formatResult(data));
+      return res.status(200).json(await formatResult(apiKey, data, getTaskId(req.body?.taskId), req.body?.modelLabel || "Image"));
     } catch (error) {
       return res.status(500).json({ error: error.message || "Could not check the cutout" });
     }
   }
 
   const imageUrl = typeof req.body?.imageUrl === "string" ? req.body.imageUrl : "";
+  const taskId = getTaskId(req.body?.taskId);
+  const modelLabel = typeof req.body?.modelLabel === "string" ? req.body.modelLabel : "Image";
   if (!imageUrl || !(/^(https?:\/\/)/.test(imageUrl) || imageUrl.startsWith("/api/image?file="))) {
     return res.status(400).json({ error: "Image URL is required" });
   }
@@ -141,7 +218,7 @@ module.exports = async function handler(req, res) {
     const data = await removed.json();
     if (!removed.ok) throw new Error(getAtlasError(data, "Atlas Cloud could not remove the background"));
 
-    return res.status(200).json(formatResult(data));
+    return res.status(200).json(await formatResult(apiKey, data, taskId, modelLabel));
   } catch (error) {
     return res.status(500).json({ error: error.message || "Could not remove the background" });
   }

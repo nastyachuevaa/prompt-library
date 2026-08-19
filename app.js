@@ -664,7 +664,10 @@ async function addGeneratedImages(images, modelLabel, taskId = state.activeTask)
     state.results = state.histories[taskId];
   }
   saveHistories(state.histories);
-  const archive = await persistImages(taskId, nextImages);
+  const imagesToPersist = nextImages.filter((image) => !image.id);
+  const archive = imagesToPersist.length
+    ? await persistImages(taskId, imagesToPersist)
+    : { savedCount: nextImages.length };
 
   if (taskId === state.activeTask) {
     window.requestAnimationFrame(() => {
@@ -764,7 +767,7 @@ async function removeBackground(index) {
     const response = await fetch(endpoint, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ imageUrl: image.url }),
+      body: JSON.stringify({ imageUrl: image.url, taskId: state.activeTask, modelLabel: image.modelLabel || "Image" }),
     });
     let data = await response.json();
     if (!response.ok) throw new Error(data?.error || "Не удалось убрать фон");
@@ -775,7 +778,7 @@ async function removeBackground(index) {
       const pollResponse = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "poll", predictionId: data.predictionId }),
+        body: JSON.stringify({ action: "poll", predictionId: data.predictionId, taskId: state.activeTask, modelLabel: image.modelLabel || "Image" }),
       });
       data = await pollResponse.json();
       if (!pollResponse.ok) throw new Error(data?.error || "Не удалось получить результат вырезания");
