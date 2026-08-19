@@ -442,8 +442,9 @@ function renderResultCards(results = getActiveResults()) {
         const isSelected = state.selectedUrls.has(image.url);
         const canRemoveBackground = BACKGROUND_REMOVAL_ENABLED && ["liveops", "avatars"].includes(state.activeTask);
         const isRemoving = state.removingUrls.has(image.url);
+        const isCutout = String(image.modelLabel || "").includes("без фона");
         return `
-        <article class="result-card ${isSelected ? "is-selected" : ""}">
+        <article class="result-card ${isSelected ? "is-selected" : ""} ${isCutout ? "is-cutout" : ""}">
           <button class="select-image-button" type="button" data-select-image="${index}" aria-label="${isSelected ? "Снять выделение" : "Выделить изображение"}" aria-pressed="${isSelected}" title="${isSelected ? "Снять выделение" : "Выделить изображение"}">${isSelected ? "✓" : ""}</button>
           <img src="${escapeHTML(image.url)}" alt="Generated image ${index + 1}" data-result-index="${index}" />
           <span class="image-load-error" aria-live="polite">Превью не загрузилось</span>
