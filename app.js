@@ -2,7 +2,7 @@ const SEEDREAM_PREFIX =
   "dynamic angled iphone shot, warm storytelling composition, dynamic tilted iphone shot, slight motion blur for realism, candid cinematic everyday moment, shot on iphone, phone quality, phone grain, iphone colors, dynamic angle, storytelling composition, dramatic composition, flirty vibe, low contrast, no studio lighting, slight hand shake, imperfect crop, iPhone front-camera,";
 
 const CHARACTER_SUFFIX = "Plain gray studio wall background, natural indoor phone lighting, raw realistic iPhone photo";
-const BACKGROUND_REMOVAL_ENABLED = false;
+const BACKGROUND_REMOVAL_ENABLED = true;
 
 const MODELS = {
   "nano-banana-pro": { label: "Nano Banana Pro", resolutions: ["1K", "2K", "4K"] },
@@ -446,6 +446,7 @@ function renderResultCards(results = getActiveResults()) {
         <article class="result-card ${isSelected ? "is-selected" : ""}">
           <button class="select-image-button" type="button" data-select-image="${index}" aria-label="${isSelected ? "Снять выделение" : "Выделить изображение"}" aria-pressed="${isSelected}" title="${isSelected ? "Снять выделение" : "Выделить изображение"}">${isSelected ? "✓" : ""}</button>
           <img src="${escapeHTML(image.url)}" alt="Generated image ${index + 1}" data-result-index="${index}" />
+          <span class="image-load-error" aria-live="polite">Превью не загрузилось</span>
           <div class="result-actions">
             <span>${escapeHTML(image.modelLabel || "Image")}</span>
             <div>
@@ -1108,7 +1109,7 @@ function bindEvents() {
     (event) => {
       const image = event.target.closest("img[data-result-index]");
       if (!image) return;
-      removeResultByUrl(image.getAttribute("src"));
+      image.closest(".result-card")?.setAttribute("data-image-failed", "true");
     },
     true,
   );
