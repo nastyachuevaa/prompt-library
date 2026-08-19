@@ -2,6 +2,7 @@ const SEEDREAM_PREFIX =
   "dynamic angled iphone shot, warm storytelling composition, dynamic tilted iphone shot, slight motion blur for realism, candid cinematic everyday moment, shot on iphone, phone quality, phone grain, iphone colors, dynamic angle, storytelling composition, dramatic composition, flirty vibe, low contrast, no studio lighting, slight hand shake, imperfect crop, iPhone front-camera,";
 
 const CHARACTER_SUFFIX = "Plain gray studio wall background, natural indoor phone lighting, raw realistic iPhone photo";
+const BACKGROUND_REMOVAL_ENABLED = false;
 
 const MODELS = {
   "nano-banana-pro": { label: "Nano Banana Pro", resolutions: ["1K", "2K", "4K"] },
@@ -439,7 +440,7 @@ function renderResultCards(results = getActiveResults()) {
     .map(
       (image, index) => {
         const isSelected = state.selectedUrls.has(image.url);
-        const canRemoveBackground = ["liveops", "avatars"].includes(state.activeTask);
+        const canRemoveBackground = BACKGROUND_REMOVAL_ENABLED && ["liveops", "avatars"].includes(state.activeTask);
         const isRemoving = state.removingUrls.has(image.url);
         return `
         <article class="result-card ${isSelected ? "is-selected" : ""}">
@@ -757,7 +758,7 @@ async function deletePersistedImages(taskId, images) {
 async function removeBackground(index) {
   const image = getActiveResults()[index];
   const endpoint = getRemoveBackgroundEndpoint();
-  if (!image || !endpoint || !["liveops", "avatars"].includes(state.activeTask)) return;
+  if (!BACKGROUND_REMOVAL_ENABLED || !image || !endpoint || !["liveops", "avatars"].includes(state.activeTask)) return;
   if (!window.confirm("Вырезание фона использует Atlas Cloud и стоит примерно $0.086 за изображение. Продолжить?")) return;
 
   state.removingUrls.add(image.url);
