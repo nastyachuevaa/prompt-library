@@ -717,7 +717,7 @@ async function persistImages(taskId, images) {
     if (!response.ok) return { savedCount: 0 };
     const data = await response.json();
     if (!data.images?.length) return { savedCount: 0 };
-    const savedBySource = new Map(data.images.map((image) => [image.sourceUrl, normalizeSavedImage(image)]));
+    const savedBySource = new Map(data.images.map((image) => [image.clientSourceUrl || image.sourceUrl, normalizeSavedImage(image)]));
     state.histories[taskId] = (state.histories[taskId] || []).map((image) => savedBySource.get(image.sourceUrl || image.url) || image);
     if (taskId === state.activeTask) state.results = state.histories[taskId];
     saveHistories(state.histories);

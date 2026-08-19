@@ -90,6 +90,12 @@ function isRemoteImageUrl(value) {
   return typeof value === "string" && (value.startsWith("http://") || value.startsWith("https://") || value.startsWith("/api/image?file="));
 }
 
+function parseImageDataUrl(value) {
+  const match = typeof value === "string" && value.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/);
+  if (!match) return null;
+  return { mediaType: match[1], bytes: Buffer.from(match[2], "base64") };
+}
+
 function makeAbsoluteUrl(req, value) {
   if (value.startsWith("http://") || value.startsWith("https://")) return value;
   const protocol = req.headers["x-forwarded-proto"] || "https";
@@ -98,29 +104,39 @@ function makeAbsoluteUrl(req, value) {
 
 async function archiveImage(req, taskId, image) {
   const sourceUrl = typeof image.sourceUrl === "string" && image.sourceUrl ? image.sourceUrl : image.url;
-  if (!isRemoteImageUrl(sourceUrl)) throw new Error("Unsupported image URL");
-  const imageResponse = await fetch(makeAbsoluteUrl(req, sourceUrl));
-  if (!imageResponse.ok) throw new Error("Could not archive generated image");
-  const mediaType = imageResponse.headers.get("content-type")?.split(";")[0] || image.mediaType || "image/png";
-  if (!mediaType.startsWith("image/")) throw new Error("Generated file is not an image");
+  const embeddedImage = parseImageDataUrl(sourceUrl);
+  let bytes;
+  let mediaType;
+
+  if (embeddedImage) {
+    bytes = embeddedImage.bytes;
+    mediaType = embeddedImage.mediaType;
+  } else {
+    if (!isRemoteImageUrl(sourceUrl)) throw new Error("Unsupported image URL");
+    const imageResponse = await fetch(makeAbsoluteUrl(req, sourceUrl));
+    if (!imageResponse.ok) throw new Error("Could not archive generated image");
+    mediaType = imageResponse.headers.get("content-type")?.split(";")[0] || image.mediaType || "image/png";
+    if (!mediaType.startsWith("image/")) throw new Error("Generated file is not an image");
+    bytes = Buffer.from(await imageResponse.arrayBuffer());
+  }
 
   const id = createEntryId();
   const imageBlob = await putBlob(
     `${HISTORY_ROOT}/${taskId}/images/${id}.${safeFileExtension(mediaType)}`,
-    Buffer.from(await imageResponse.arrayBuffer()),
+    bytes,
     mediaType,
   );
   const entry = {
     id,
     taskId,
     url: imageBlob.url,
-    sourceUrl,
+    sourceUrl: embeddedImage ? imageBlob.url : sourceUrl,
     mediaType,
     modelLabel: typeof image.modelLabel === "string" ? image.modelLabel : "Image",
     createdAt: typeof image.createdAt === "string" && image.createdAt ? image.createdAt : new Date().toISOString(),
   };
   const metadataBlob = await putBlob(`${HISTORY_ROOT}/${taskId}/entries/${id}.json`, JSON.stringify(entry), "application/json");
-  return { ...entry, metadataUrl: metadataBlob.url };
+  return { ...entry, clientSourceUrl: sourceUrl, metadataUrl: metadataBlob.url };
 }
 
 async function deleteEntries(taskId, ids) {
