@@ -708,11 +708,18 @@ async function persistImages(taskId, images) {
   const endpoint = getHistoryEndpoint();
   if (!endpoint || !images.length) return { savedCount: 0 };
 
+  const imagesToArchive = images.map((image) => ({
+    sourceUrl: image.sourceUrl || image.url,
+    mediaType: image.mediaType,
+    modelLabel: image.modelLabel,
+    createdAt: image.createdAt,
+  }));
+
   try {
     const response = await fetch(endpoint, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "save", taskId, images }),
+      body: JSON.stringify({ action: "save", taskId, images: imagesToArchive }),
     });
     if (!response.ok) return { savedCount: 0 };
     const data = await response.json();
