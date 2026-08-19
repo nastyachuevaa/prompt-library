@@ -453,7 +453,7 @@ function renderResultCards(results = getActiveResults()) {
             <div>
               ${canRemoveBackground ? `<button class="ghost-button compact" type="button" data-remove-background="${index}" ${isRemoving ? "disabled" : ""}>${isRemoving ? "Вырезаем..." : "Убрать фон"}</button>` : ""}
               <button class="ghost-button compact" type="button" data-copy-image="${index}">Copy</button>
-              <a class="ghost-button compact" href="${escapeHTML(image.url)}" download="prompt-studio-${index + 1}.png">Download</a>
+              <button class="ghost-button compact" type="button" data-download-image="${index}">Download</button>
             </div>
           </div>
         </article>
@@ -930,6 +930,29 @@ async function copyImage(index) {
   }
 }
 
+async function downloadImage(index) {
+  const image = getActiveResults()[index];
+  if (!image) return;
+
+  try {
+    const response = image.url.startsWith("data:") ? null : await fetch(image.url);
+    if (response && !response.ok) throw new Error("image download failed");
+    const blob = image.url.startsWith("data:") ? dataUrlToBlob(image.url) : await response.blob();
+    const extension = blob.type === "image/jpeg" ? "jpg" : blob.type === "image/webp" ? "webp" : "png";
+    const link = document.createElement("a");
+    const objectUrl = URL.createObjectURL(blob);
+    link.href = objectUrl;
+    link.download = `prompt-studio-${index + 1}.${extension}`;
+    document.body.append(link);
+    link.click();
+    link.remove();
+    window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
+    setStatus("Image downloaded");
+  } catch {
+    setStatus("Download unavailable");
+  }
+}
+
 function fileToDataUrl(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -1104,6 +1127,9 @@ function bindEvents() {
 
     const copyButton = event.target.closest("[data-copy-image]");
     if (copyButton) copyImage(Number(copyButton.dataset.copyImage));
+
+    const downloadButton = event.target.closest("[data-download-image]");
+    if (downloadButton) downloadImage(Number(downloadButton.dataset.downloadImage));
   });
   els.resultsGrid.addEventListener(
     "error",
