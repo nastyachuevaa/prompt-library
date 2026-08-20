@@ -183,7 +183,8 @@ function loadWorkspaceState() {
   let activeTask = "appearance";
 
   try {
-    const saved = JSON.parse(localStorage.getItem(WORKSPACE_STATE_STORAGE_KEY) || "{}");
+    const storedDraft = sessionStorage.getItem(WORKSPACE_STATE_STORAGE_KEY) || localStorage.getItem(WORKSPACE_STATE_STORAGE_KEY) || "{}";
+    const saved = JSON.parse(storedDraft);
     if (TASKS.some((task) => task.id === saved.activeTask)) activeTask = saved.activeTask;
     TASKS.forEach((task) => {
       const savedValues = saved.values?.[task.id];
@@ -209,11 +210,16 @@ function loadWorkspaceState() {
 }
 
 function saveWorkspaceState() {
+  const serialized = JSON.stringify({ activeTask: state.activeTask, values: state.values, settings: state.settings });
+
   try {
-    localStorage.setItem(
-      WORKSPACE_STATE_STORAGE_KEY,
-      JSON.stringify({ activeTask: state.activeTask, values: state.values, settings: state.settings }),
-    );
+    sessionStorage.setItem(WORKSPACE_STATE_STORAGE_KEY, serialized);
+  } catch {
+    // Local storage below remains as a longer-lived fallback.
+  }
+
+  try {
+    localStorage.setItem(WORKSPACE_STATE_STORAGE_KEY, serialized);
   } catch {
     // Keeping the current session usable matters more than saving a draft.
   }
@@ -1202,6 +1208,7 @@ function handleFormClick(event) {
 }
 
 function bindEvents() {
+  window.addEventListener("pagehide", saveWorkspaceState);
   els.taskTabs.addEventListener("click", (event) => {
     const tab = event.target.closest("[data-task]");
     if (tab) switchTask(tab.dataset.task);
