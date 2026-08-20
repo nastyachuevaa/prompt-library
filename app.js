@@ -961,11 +961,13 @@ function openImagePreview(index) {
   if (!image || !els.imagePreviewDialog || !els.imagePreview) return;
   els.imagePreview.src = image.url;
   els.imagePreview.alt = `Generated image ${index + 1}`;
-  els.imagePreviewDialog.showModal();
+  if (typeof els.imagePreviewDialog.showModal === "function") els.imagePreviewDialog.showModal();
+  else els.imagePreviewDialog.setAttribute("open", "");
 }
 
 function closeImagePreview() {
-  els.imagePreviewDialog?.close();
+  if (typeof els.imagePreviewDialog?.close === "function") els.imagePreviewDialog.close();
+  else els.imagePreviewDialog?.removeAttribute("open");
 }
 
 function fileToDataUrl(file) {
