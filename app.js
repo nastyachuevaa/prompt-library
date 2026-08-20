@@ -146,6 +146,45 @@ function createImageRecipe(taskId = state.activeTask) {
   };
 }
 
+function getRecipeForImage(image) {
+  const savedRecipe = normalizeImageRecipe(image?.recipe);
+  if (savedRecipe) return savedRecipe;
+  if (!image?.prompt) return null;
+
+  const taskId = TASKS.some((task) => task.id === image.taskId) ? image.taskId : state.activeTask;
+  const recipe = createImageRecipe(taskId);
+  const prompt = image.prompt.trim();
+
+  if (taskId === "liveops") {
+    const match = prompt.match(/^3d\s+иконка\s+(.+?)\s+глассморфизм\s+(.+?)\s+вот\s+как\s+примеры/i);
+    if (match) {
+      recipe.values.subject = match[1].trim();
+      const color = match[2].trim();
+      const palette = PALETTES.find((item) => color.toLowerCase().includes(item.prompt.toLowerCase()));
+      recipe.values.palette = palette?.id || recipe.values.palette;
+      recipe.values.customColor = palette ? "" : color;
+      return recipe;
+    }
+  }
+
+  if (taskId === "seedream") {
+    recipe.values.idea = prompt.replace(SEEDREAM_PREFIX, "").trim() || prompt;
+    return recipe;
+  }
+
+  if (taskId === "appearance") {
+    recipe.values.description = prompt;
+    return recipe;
+  }
+
+  if (taskId === "avatars") {
+    recipe.values.expression = prompt;
+    return recipe;
+  }
+
+  return null;
+}
+
 function isUsableImageUrl(url) {
   if (typeof url !== "string" || !url) return false;
   if (url.startsWith("data:image/")) return true;
@@ -1081,7 +1120,7 @@ function showPreviewImage(index) {
   els.imagePreview.alt = `Generated image ${index + 1}`;
   const prompt = image.prompt || "";
   els.imagePreviewPrompt.textContent = prompt || "Промпт для этой ранней генерации не был сохранен.";
-  els.copyImagePrompt.disabled = !image.recipe;
+  els.copyImagePrompt.disabled = !getRecipeForImage(image);
   els.copyImagePrompt.textContent = "Вставить в поля";
   els.imagePreviewCanvas.classList.toggle("is-cutout", String(image.modelLabel || "").includes("без фона"));
   els.imagePreviewDialog.dataset.previewIndex = String(index);
@@ -1109,7 +1148,7 @@ function closeImagePreview() {
 
 function copyImagePrompt() {
   const currentIndex = Number(els.imagePreviewDialog?.dataset.previewIndex);
-  const recipe = normalizeImageRecipe(getActiveResults()[currentIndex]?.recipe);
+  const recipe = getRecipeForImage(getActiveResults()[currentIndex]);
   if (!recipe) return;
 
   state.values[recipe.taskId] = { ...structuredClone(initialValues[recipe.taskId]), ...recipe.values };
