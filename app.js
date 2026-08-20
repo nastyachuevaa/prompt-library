@@ -61,6 +61,7 @@ const COMPLETED_STATUSES = new Set(["completed", "succeeded", "success", "done"]
 const FAILED_STATUSES = new Set(["failed", "error", "timeout", "canceled", "cancelled"]);
 const HISTORY_STORAGE_KEY = "prompt-studio-image-history-v1";
 const GALLERY_SIZE_STORAGE_KEY = "prompt-studio-gallery-size-v1";
+const WORKSPACE_STATE_STORAGE_KEY = "prompt-studio-workspace-state-v1";
 const MAX_HISTORY_ITEMS = 80;
 const REFERENCE_MAX_DIMENSION = 1024;
 const REFERENCE_IMAGE_QUALITY = 0.8;
@@ -162,15 +163,8 @@ function saveHistories(histories) {
 
 const savedHistories = loadSavedHistories();
 
-function loadGallerySize() {
-  const saved = Number(localStorage.getItem(GALLERY_SIZE_STORAGE_KEY));
-  return Number.isFinite(saved) ? Math.min(Math.max(saved, 160), 420) : 260;
-}
-
-const state = {
-  activeTask: "appearance",
-  values: structuredClone(initialValues),
-  settings: Object.fromEntries(
+function createDefaultSettings() {
+  return Object.fromEntries(
     TASKS.map((task) => [
       task.id,
       {
@@ -180,10 +174,65 @@ const state = {
         count: task.defaultCount,
       },
     ]),
-  ),
+  );
+}
+
+function loadWorkspaceState() {
+  const values = structuredClone(initialValues);
+  const settings = createDefaultSettings();
+  let activeTask = "appearance";
+
+  try {
+    const saved = JSON.parse(localStorage.getItem(WORKSPACE_STATE_STORAGE_KEY) || "{}");
+    if (TASKS.some((task) => task.id === saved.activeTask)) activeTask = saved.activeTask;
+    TASKS.forEach((task) => {
+      const savedValues = saved.values?.[task.id];
+      if (savedValues && typeof savedValues === "object") {
+        Object.keys(values[task.id]).forEach((key) => {
+          if (typeof savedValues[key] === "string") values[task.id][key] = savedValues[key];
+        });
+      }
+
+      const savedSettings = saved.settings?.[task.id];
+      if (savedSettings && typeof savedSettings === "object") {
+        if (task.modelOptions.includes(savedSettings.model)) settings[task.id].model = savedSettings.model;
+        if (ASPECTS.includes(savedSettings.aspect)) settings[task.id].aspect = savedSettings.aspect;
+        if (RESOLUTIONS.includes(savedSettings.resolution)) settings[task.id].resolution = savedSettings.resolution;
+        if (Number.isFinite(savedSettings.count)) settings[task.id].count = Math.min(Math.max(Math.floor(savedSettings.count), 1), 4);
+      }
+    });
+  } catch {
+    // A malformed draft should never prevent the studio from opening.
+  }
+
+  return { activeTask, values, settings };
+}
+
+function saveWorkspaceState() {
+  try {
+    localStorage.setItem(
+      WORKSPACE_STATE_STORAGE_KEY,
+      JSON.stringify({ activeTask: state.activeTask, values: state.values, settings: state.settings }),
+    );
+  } catch {
+    // Keeping the current session usable matters more than saving a draft.
+  }
+}
+
+const savedWorkspaceState = loadWorkspaceState();
+
+function loadGallerySize() {
+  const saved = Number(localStorage.getItem(GALLERY_SIZE_STORAGE_KEY));
+  return Number.isFinite(saved) ? Math.min(Math.max(saved, 160), 420) : 260;
+}
+
+const state = {
+  activeTask: savedWorkspaceState.activeTask,
+  values: savedWorkspaceState.values,
+  settings: savedWorkspaceState.settings,
   references: Object.fromEntries(TASKS.map((task) => [task.id, []])),
   histories: savedHistories,
-  results: savedHistories.appearance || [],
+  results: savedHistories[savedWorkspaceState.activeTask] || [],
   isGenerating: false,
   generatingTaskId: "",
   pendingCount: 0,
@@ -1106,6 +1155,7 @@ function switchTask(taskId) {
   state.results = state.histories[taskId] || [];
   state.selectedUrls.clear();
   setStatus("");
+  saveWorkspaceState();
   renderAll();
   loadRemoteHistory(taskId);
 }
@@ -1121,6 +1171,7 @@ function resetTask() {
   };
   state.references[task.id] = [];
   setStatus("");
+  saveWorkspaceState();
   renderAll();
 }
 
@@ -1133,6 +1184,7 @@ function handleFormInput(event) {
     state.values.liveops.customColor = "";
     renderForm();
   }
+  saveWorkspaceState();
   renderPromptPreview();
 }
 
@@ -1141,6 +1193,7 @@ function handleFormClick(event) {
   if (choice) {
     const row = choice.closest("[data-field]");
     state.values[state.activeTask][row.dataset.field] = choice.dataset.value;
+    saveWorkspaceState();
     renderForm();
     renderPromptPreview();
     return;
@@ -1167,21 +1220,25 @@ function bindEvents() {
 
   els.modelSelect.addEventListener("change", () => {
     getSettings().model = els.modelSelect.value;
+    saveWorkspaceState();
     renderSettings();
   });
 
   els.aspectSelect.addEventListener("change", () => {
     getSettings().aspect = els.aspectSelect.value;
+    saveWorkspaceState();
     renderSettings();
   });
 
   els.resolutionSelect.addEventListener("change", () => {
     getSettings().resolution = els.resolutionSelect.value;
+    saveWorkspaceState();
     renderSettings();
   });
 
   els.countInput.addEventListener("input", () => {
     getSettings().count = Math.min(Math.max(Number(els.countInput.value) || 1, 1), 4);
+    saveWorkspaceState();
   });
 
   els.referenceInput.addEventListener("change", () => addReferences(els.referenceInput.files));
