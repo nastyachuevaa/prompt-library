@@ -111,6 +111,7 @@ function normalizeSavedImage(image) {
     sourceUrl: typeof image.sourceUrl === "string" ? image.sourceUrl : image.url,
     mediaType: typeof image.mediaType === "string" ? image.mediaType : "image/png",
     modelLabel: typeof image.modelLabel === "string" ? image.modelLabel : "Image",
+    prompt: typeof image.prompt === "string" ? image.prompt : "",
     taskId: typeof image.taskId === "string" ? image.taskId : "",
     createdAt: typeof image.createdAt === "string" ? image.createdAt : "",
   };
@@ -220,6 +221,9 @@ const els = {
   imagePreviewClose: document.querySelector("#imagePreviewClose"),
   imagePreviewPrev: document.querySelector("#imagePreviewPrev"),
   imagePreviewNext: document.querySelector("#imagePreviewNext"),
+  imagePreviewCanvas: document.querySelector("#imagePreviewCanvas"),
+  imagePreviewPrompt: document.querySelector("#imagePreviewPrompt"),
+  copyImagePrompt: document.querySelector("#copyImagePrompt"),
 };
 
 function escapeHTML(value) {
@@ -598,13 +602,14 @@ async function generateImages() {
   renderResults();
 
   try {
+    const prompt = makePrompt();
     const response = await fetch(endpoint, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         action: "start",
         modelKey,
-        prompt: makePrompt(),
+        prompt,
         aspectRatio: settings.aspect,
         resolution: settings.resolution,
         count: settings.count,
@@ -618,7 +623,7 @@ async function generateImages() {
     }
 
     const modelLabel = MODELS[modelKey]?.label || "Image";
-    addGeneratedImages(data.images, modelLabel, taskId);
+    addGeneratedImages(data.images, modelLabel, taskId, prompt);
     renderResults();
 
     const pendingIds = (data.predictions || [])
@@ -628,7 +633,7 @@ async function generateImages() {
 
     if (pendingIds.length) {
       state.pendingCount = pendingIds.length;
-      await pollImageJobs({ endpoint, modelKey, modelLabel, pendingIds, taskId });
+      await pollImageJobs({ endpoint, modelKey, modelLabel, pendingIds, taskId, prompt });
     } else {
       state.pendingCount = 0;
       setStatus(state.histories[taskId].length ? `Ready: ${state.histories[taskId].length}` : "No image returned");
@@ -652,7 +657,7 @@ function wait(ms) {
   });
 }
 
-async function addGeneratedImages(images, modelLabel, taskId = state.activeTask) {
+async function addGeneratedImages(images, modelLabel, taskId = state.activeTask, prompt = "") {
   const results = state.histories[taskId] || [];
   const existingUrls = new Set(results.map((image) => image.url));
   const nextImages = (images || [])
@@ -661,6 +666,7 @@ async function addGeneratedImages(images, modelLabel, taskId = state.activeTask)
       ...image,
       sourceUrl: image.sourceUrl || image.url,
       modelLabel,
+      prompt: typeof image.prompt === "string" && image.prompt ? image.prompt : prompt,
       taskId,
       createdAt: new Date().toISOString(),
     }));
@@ -723,6 +729,7 @@ async function persistImages(taskId, images) {
     sourceUrl: image.sourceUrl || image.url,
     mediaType: image.mediaType,
     modelLabel: image.modelLabel,
+    prompt: image.prompt,
     createdAt: image.createdAt,
   }));
 
@@ -775,7 +782,7 @@ async function removeBackground(index) {
     const response = await fetch(endpoint, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ imageUrl: image.url, taskId: state.activeTask, modelLabel: image.modelLabel || "Image" }),
+      body: JSON.stringify({ imageUrl: image.url, taskId: state.activeTask, modelLabel: image.modelLabel || "Image", prompt: image.prompt || "" }),
     });
     let data = await response.json();
     if (!response.ok) throw new Error(data?.error || "Не удалось убрать фон");
@@ -786,7 +793,7 @@ async function removeBackground(index) {
       const pollResponse = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "poll", predictionId: data.predictionId, taskId: state.activeTask, modelLabel: image.modelLabel || "Image" }),
+        body: JSON.stringify({ action: "poll", predictionId: data.predictionId, taskId: state.activeTask, modelLabel: image.modelLabel || "Image", prompt: image.prompt || "" }),
       });
       data = await pollResponse.json();
       if (!pollResponse.ok) throw new Error(data?.error || "Не удалось получить результат вырезания");
@@ -796,7 +803,7 @@ async function removeBackground(index) {
     }
 
     if (!data.image) throw new Error("Atlas Cloud пока не вернул версию без фона. Попробуйте еще раз.");
-    const result = await addGeneratedImages([data.image], `${image.modelLabel || "Image"} - без фона`, state.activeTask);
+    const result = await addGeneratedImages([data.image], `${image.modelLabel || "Image"} - без фона`, state.activeTask, image.prompt || "");
     if (result.savedCount < result.addedCount) {
       throw new Error("Версия без фона создана, но не сохранилась в галерее. Списание можно проверить в Atlas Cloud.");
     }
@@ -830,7 +837,7 @@ async function loadRemoteHistory(taskId) {
   }
 }
 
-async function pollImageJobs({ endpoint, modelKey, modelLabel, pendingIds, taskId }) {
+async function pollImageJobs({ endpoint, modelKey, modelLabel, pendingIds, taskId, prompt }) {
   const startedAt = Date.now();
   let remainingIds = pendingIds;
 
@@ -860,7 +867,7 @@ async function pollImageJobs({ endpoint, modelKey, modelLabel, pendingIds, taskI
       throw new Error(failed.error || "Atlas Cloud generation failed");
     }
 
-    addGeneratedImages(data.images, modelLabel, taskId);
+    addGeneratedImages(data.images, modelLabel, taskId, prompt);
     remainingIds = predictions
       .filter((prediction) => !COMPLETED_STATUSES.has(prediction.status))
       .map((prediction) => prediction.id)
@@ -964,6 +971,10 @@ function showPreviewImage(index) {
   if (!image || !els.imagePreviewDialog || !els.imagePreview) return;
   els.imagePreview.src = image.url;
   els.imagePreview.alt = `Generated image ${index + 1}`;
+  const prompt = image.prompt || "";
+  els.imagePreviewPrompt.textContent = prompt || "Промпт для этой ранней генерации не был сохранен.";
+  els.copyImagePrompt.disabled = !prompt;
+  els.imagePreviewCanvas.classList.toggle("is-cutout", String(image.modelLabel || "").includes("без фона"));
   els.imagePreviewDialog.dataset.previewIndex = String(index);
   els.imagePreviewPrev.disabled = index === 0;
   els.imagePreviewNext.disabled = index === results.length - 1;
@@ -985,6 +996,18 @@ function navigateImagePreview(direction) {
 function closeImagePreview() {
   if (typeof els.imagePreviewDialog?.close === "function") els.imagePreviewDialog.close();
   else els.imagePreviewDialog?.removeAttribute("open");
+}
+
+async function copyImagePrompt() {
+  const currentIndex = Number(els.imagePreviewDialog?.dataset.previewIndex);
+  const prompt = getActiveResults()[currentIndex]?.prompt;
+  if (!prompt) return;
+  try {
+    await navigator.clipboard.writeText(prompt);
+    setStatus("Prompt copied");
+  } catch {
+    setStatus(copyTextFallback(prompt) ? "Prompt copied" : "Copy failed");
+  }
 }
 
 function fileToDataUrl(file) {
@@ -1174,6 +1197,7 @@ function bindEvents() {
   els.imagePreviewClose.addEventListener("click", closeImagePreview);
   els.imagePreviewPrev.addEventListener("click", () => navigateImagePreview(-1));
   els.imagePreviewNext.addEventListener("click", () => navigateImagePreview(1));
+  els.copyImagePrompt.addEventListener("click", copyImagePrompt);
   els.imagePreviewDialog.addEventListener("click", (event) => {
     if (event.target === els.imagePreviewDialog) closeImagePreview();
   });

@@ -93,12 +93,21 @@
     </main>
 
     <dialog class="image-preview-dialog" id="imagePreviewDialog" aria-label="Просмотр изображения">
-      <button class="image-preview-nav image-preview-prev" type="button" id="imagePreviewPrev" aria-label="Предыдущее изображение" title="Предыдущее изображение">‹</button>
       <button class="image-preview-close" type="button" id="imagePreviewClose" aria-label="Закрыть просмотр">×</button>
-      <img id="imagePreview" alt="Увеличенное изображение" />
-      <button class="image-preview-nav image-preview-next" type="button" id="imagePreviewNext" aria-label="Следующее изображение" title="Следующее изображение">›</button>
+      <div class="image-preview-layout">
+        <div class="image-preview-canvas" id="imagePreviewCanvas">
+          <button class="image-preview-nav image-preview-prev" type="button" id="imagePreviewPrev" aria-label="Предыдущее изображение" title="Предыдущее изображение">‹</button>
+          <img id="imagePreview" alt="Увеличенное изображение" />
+          <button class="image-preview-nav image-preview-next" type="button" id="imagePreviewNext" aria-label="Следующее изображение" title="Следующее изображение">›</button>
+        </div>
+        <aside class="image-preview-details">
+          <p class="eyebrow">Prompt</p>
+          <p class="image-preview-prompt" id="imagePreviewPrompt"></p>
+          <button class="ghost-button" type="button" id="copyImagePrompt">Скопировать промпт</button>
+        </aside>
+      </div>
     </dialog>
 
-    <script src="app.js?v=image-preview-nav-8" defer></script>
+    <script src="app.js?v=image-preview-prompt-9" defer></script>
   </body>
 </html>

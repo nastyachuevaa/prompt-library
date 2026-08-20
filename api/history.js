@@ -133,6 +133,7 @@ async function archiveImage(req, taskId, image) {
     sourceUrl: embeddedImage ? imageBlob.url : sourceUrl,
     mediaType,
     modelLabel: typeof image.modelLabel === "string" ? image.modelLabel : "Image",
+    prompt: typeof image.prompt === "string" ? image.prompt : "",
     createdAt: typeof image.createdAt === "string" && image.createdAt ? image.createdAt : new Date().toISOString(),
   };
   const metadataBlob = await putBlob(`${HISTORY_ROOT}/${taskId}/entries/${id}.json`, JSON.stringify(entry), "application/json");
