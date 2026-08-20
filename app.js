@@ -949,15 +949,35 @@ async function pollImageJobs({ endpoint, modelKey, modelLabel, pendingIds, taskI
 
 function copyTextFallback(text, container = document.body) {
   const textarea = document.createElement("textarea");
+  const previouslyFocused = document.activeElement;
   textarea.value = text;
   textarea.setAttribute("readonly", "");
   textarea.style.position = "fixed";
   textarea.style.left = "-9999px";
+  textarea.style.top = "0";
+  textarea.style.opacity = "0";
   container.appendChild(textarea);
+  textarea.focus({ preventScroll: true });
   textarea.select();
-  const copied = document.execCommand("copy");
+  textarea.setSelectionRange(0, textarea.value.length);
+  let copied = false;
+  try {
+    copied = document.execCommand("copy");
+  } catch {
+    copied = false;
+  }
   textarea.remove();
+  previouslyFocused?.focus?.({ preventScroll: true });
   return copied;
+}
+
+function selectElementText(element) {
+  if (!element || !window.getSelection) return;
+  const range = document.createRange();
+  range.selectNodeContents(element);
+  const selection = window.getSelection();
+  selection.removeAllRanges();
+  selection.addRange(range);
 }
 
 async function copyPrompt() {
@@ -1063,6 +1083,7 @@ async function copyImagePrompt() {
   if (!prompt) return;
   let copied = false;
   try {
+    if (!navigator.clipboard?.writeText) throw new Error("Clipboard is unavailable");
     await navigator.clipboard.writeText(prompt);
     copied = true;
   } catch {
@@ -1077,7 +1098,8 @@ async function copyImagePrompt() {
       els.copyImagePrompt.textContent = originalLabel;
     }, 1400);
   } else {
-    setStatus("Copy failed");
+    selectElementText(els.imagePreviewPrompt);
+    setStatus("Не удалось скопировать автоматически. Текст промпта выделен.");
   }
 }
 
