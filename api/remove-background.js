@@ -68,7 +68,7 @@ async function putBlob(pathname, body, contentType) {
   return data;
 }
 
-async function archiveResult(apiKey, outputUrl, taskId, modelLabel, prompt) {
+async function archiveResult(apiKey, outputUrl, taskId, modelLabel, prompt, recipe) {
   const embeddedImage = parseImageDataUrl(outputUrl);
   let bytes;
   let mediaType;
@@ -101,6 +101,7 @@ async function archiveResult(apiKey, outputUrl, taskId, modelLabel, prompt) {
     mediaType,
     modelLabel: `${modelLabel} - без фона`,
     prompt: typeof prompt === "string" ? prompt : "",
+    recipe: recipe && typeof recipe === "object" ? recipe : null,
     createdAt: new Date().toISOString(),
   };
   await putBlob(`${HISTORY_ROOT}/${taskId}/entries/${id}.json`, JSON.stringify(entry), "application/json");
@@ -126,13 +127,13 @@ function getPredictionId(data) {
   return response?.id || response?.prediction_id || response?.predictionId || response?.request_id || "";
 }
 
-async function formatResult(apiKey, data, taskId, modelLabel, prompt) {
+async function formatResult(apiKey, data, taskId, modelLabel, prompt, recipe) {
   const response = data?.data || data;
   const outputUrl = getOutputUrl(data);
   const imageUrl = outputUrl && (outputUrl.startsWith("data:image/") || outputUrl.startsWith("https://"))
     ? makeProxyImageUrl(outputUrl)
     : "";
-  const image = imageUrl ? await archiveResult(apiKey, outputUrl, taskId, modelLabel, prompt) : null;
+  const image = imageUrl ? await archiveResult(apiKey, outputUrl, taskId, modelLabel, prompt, recipe) : null;
   return {
     predictionId: getPredictionId(data),
     status: response?.status || (outputUrl ? "completed" : "processing"),
@@ -185,7 +186,7 @@ module.exports = async function handler(req, res) {
       });
       const data = await polled.json();
       if (!polled.ok) throw new Error(getAtlasError(data, "Atlas Cloud polling failed"));
-      return res.status(200).json(await formatResult(apiKey, data, getTaskId(req.body?.taskId), req.body?.modelLabel || "Image", req.body?.prompt || ""));
+      return res.status(200).json(await formatResult(apiKey, data, getTaskId(req.body?.taskId), req.body?.modelLabel || "Image", req.body?.prompt || "", req.body?.recipe));
     } catch (error) {
       return res.status(500).json({ error: error.message || "Could not check the cutout" });
     }
@@ -218,7 +219,7 @@ module.exports = async function handler(req, res) {
     const data = await removed.json();
     if (!removed.ok) throw new Error(getAtlasError(data, "Atlas Cloud could not remove the background"));
 
-    return res.status(200).json(await formatResult(apiKey, data, taskId, modelLabel, prompt));
+    return res.status(200).json(await formatResult(apiKey, data, taskId, modelLabel, prompt, req.body?.recipe));
   } catch (error) {
     return res.status(500).json({ error: error.message || "Could not remove the background" });
   }

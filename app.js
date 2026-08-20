@@ -115,8 +115,34 @@ function normalizeSavedImage(image) {
     mediaType: typeof image.mediaType === "string" ? image.mediaType : "image/png",
     modelLabel: typeof image.modelLabel === "string" ? image.modelLabel : "Image",
     prompt: typeof image.prompt === "string" ? image.prompt : "",
+    recipe: normalizeImageRecipe(image.recipe),
     taskId: typeof image.taskId === "string" ? image.taskId : "",
     createdAt: typeof image.createdAt === "string" ? image.createdAt : "",
+  };
+}
+
+function normalizeImageRecipe(recipe) {
+  if (!recipe || typeof recipe !== "object" || !TASKS.some((task) => task.id === recipe.taskId)) return null;
+  const task = TASKS.find((item) => item.id === recipe.taskId);
+  const values = {};
+  Object.keys(initialValues[task.id]).forEach((key) => {
+    if (typeof recipe.values?.[key] === "string") values[key] = recipe.values[key];
+  });
+
+  const settings = {};
+  if (task.modelOptions.includes(recipe.settings?.model)) settings.model = recipe.settings.model;
+  if (ASPECTS.includes(recipe.settings?.aspect)) settings.aspect = recipe.settings.aspect;
+  if (RESOLUTIONS.includes(recipe.settings?.resolution)) settings.resolution = recipe.settings.resolution;
+  if (Number.isFinite(recipe.settings?.count)) settings.count = Math.min(Math.max(Math.floor(recipe.settings.count), 1), 4);
+
+  return { taskId: task.id, values, settings };
+}
+
+function createImageRecipe(taskId = state.activeTask) {
+  return {
+    taskId,
+    values: structuredClone(state.values[taskId]),
+    settings: structuredClone(state.settings[taskId]),
   };
 }
 
@@ -661,6 +687,7 @@ async function generateImages() {
 
   try {
     const prompt = makePrompt();
+    const recipe = createImageRecipe(taskId);
     const response = await fetch(endpoint, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -682,7 +709,7 @@ async function generateImages() {
     }
 
     const modelLabel = MODELS[modelKey]?.label || "Image";
-    addGeneratedImages(data.images, modelLabel, taskId, prompt);
+    addGeneratedImages(data.images, modelLabel, taskId, prompt, recipe);
     renderResults();
 
     const pendingIds = (data.predictions || [])
@@ -692,7 +719,7 @@ async function generateImages() {
 
     if (pendingIds.length) {
       state.pendingCount = pendingIds.length;
-      await pollImageJobs({ endpoint, modelKey, modelLabel, pendingIds, taskId, prompt });
+      await pollImageJobs({ endpoint, modelKey, modelLabel, pendingIds, taskId, prompt, recipe });
     } else {
       state.pendingCount = 0;
       setStatus(state.histories[taskId].length ? `Ready: ${state.histories[taskId].length}` : "No image returned");
@@ -716,7 +743,7 @@ function wait(ms) {
   });
 }
 
-async function addGeneratedImages(images, modelLabel, taskId = state.activeTask, prompt = "") {
+async function addGeneratedImages(images, modelLabel, taskId = state.activeTask, prompt = "", recipe = null) {
   const results = state.histories[taskId] || [];
   const existingUrls = new Set(results.map((image) => image.url));
   const nextImages = (images || [])
@@ -726,6 +753,7 @@ async function addGeneratedImages(images, modelLabel, taskId = state.activeTask,
       sourceUrl: image.sourceUrl || image.url,
       modelLabel,
       prompt: typeof image.prompt === "string" && image.prompt ? image.prompt : prompt,
+      recipe: normalizeImageRecipe(image.recipe) || recipe,
       taskId,
       createdAt: new Date().toISOString(),
     }));
@@ -789,6 +817,7 @@ async function persistImages(taskId, images) {
     mediaType: image.mediaType,
     modelLabel: image.modelLabel,
     prompt: image.prompt,
+    recipe: image.recipe,
     createdAt: image.createdAt,
   }));
 
@@ -841,7 +870,7 @@ async function removeBackground(index) {
     const response = await fetch(endpoint, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ imageUrl: image.url, taskId: state.activeTask, modelLabel: image.modelLabel || "Image", prompt: image.prompt || "" }),
+      body: JSON.stringify({ imageUrl: image.url, taskId: state.activeTask, modelLabel: image.modelLabel || "Image", prompt: image.prompt || "", recipe: image.recipe || createImageRecipe() }),
     });
     let data = await response.json();
     if (!response.ok) throw new Error(data?.error || "Не удалось убрать фон");
@@ -852,7 +881,7 @@ async function removeBackground(index) {
       const pollResponse = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "poll", predictionId: data.predictionId, taskId: state.activeTask, modelLabel: image.modelLabel || "Image", prompt: image.prompt || "" }),
+        body: JSON.stringify({ action: "poll", predictionId: data.predictionId, taskId: state.activeTask, modelLabel: image.modelLabel || "Image", prompt: image.prompt || "", recipe: image.recipe || createImageRecipe() }),
       });
       data = await pollResponse.json();
       if (!pollResponse.ok) throw new Error(data?.error || "Не удалось получить результат вырезания");
@@ -862,7 +891,7 @@ async function removeBackground(index) {
     }
 
     if (!data.image) throw new Error("Atlas Cloud пока не вернул версию без фона. Попробуйте еще раз.");
-    const result = await addGeneratedImages([data.image], `${image.modelLabel || "Image"} - без фона`, state.activeTask, image.prompt || "");
+    const result = await addGeneratedImages([data.image], `${image.modelLabel || "Image"} - без фона`, state.activeTask, image.prompt || "", image.recipe || createImageRecipe());
     if (result.savedCount < result.addedCount) {
       throw new Error("Версия без фона создана, но не сохранилась в галерее. Списание можно проверить в Atlas Cloud.");
     }
@@ -896,7 +925,7 @@ async function loadRemoteHistory(taskId) {
   }
 }
 
-async function pollImageJobs({ endpoint, modelKey, modelLabel, pendingIds, taskId, prompt }) {
+async function pollImageJobs({ endpoint, modelKey, modelLabel, pendingIds, taskId, prompt, recipe }) {
   const startedAt = Date.now();
   let remainingIds = pendingIds;
 
@@ -926,7 +955,7 @@ async function pollImageJobs({ endpoint, modelKey, modelLabel, pendingIds, taskI
       throw new Error(failed.error || "Atlas Cloud generation failed");
     }
 
-    addGeneratedImages(data.images, modelLabel, taskId, prompt);
+    addGeneratedImages(data.images, modelLabel, taskId, prompt, recipe);
     remainingIds = predictions
       .filter((prediction) => !COMPLETED_STATUSES.has(prediction.status))
       .map((prediction) => prediction.id)
@@ -1052,7 +1081,8 @@ function showPreviewImage(index) {
   els.imagePreview.alt = `Generated image ${index + 1}`;
   const prompt = image.prompt || "";
   els.imagePreviewPrompt.textContent = prompt || "Промпт для этой ранней генерации не был сохранен.";
-  els.copyImagePrompt.disabled = !prompt;
+  els.copyImagePrompt.disabled = !image.recipe;
+  els.copyImagePrompt.textContent = "Вставить в поля";
   els.imagePreviewCanvas.classList.toggle("is-cutout", String(image.modelLabel || "").includes("без фона"));
   els.imagePreviewDialog.dataset.previewIndex = String(index);
   els.imagePreviewPrev.disabled = index === 0;
@@ -1077,30 +1107,20 @@ function closeImagePreview() {
   else els.imagePreviewDialog?.removeAttribute("open");
 }
 
-async function copyImagePrompt() {
+function copyImagePrompt() {
   const currentIndex = Number(els.imagePreviewDialog?.dataset.previewIndex);
-  const prompt = getActiveResults()[currentIndex]?.prompt;
-  if (!prompt) return;
-  let copied = false;
-  try {
-    if (!navigator.clipboard?.writeText) throw new Error("Clipboard is unavailable");
-    await navigator.clipboard.writeText(prompt);
-    copied = true;
-  } catch {
-    copied = copyTextFallback(prompt, els.imagePreviewDialog);
-  }
+  const recipe = normalizeImageRecipe(getActiveResults()[currentIndex]?.recipe);
+  if (!recipe) return;
 
-  if (copied) {
-    const originalLabel = els.copyImagePrompt.textContent;
-    els.copyImagePrompt.textContent = "Скопировано";
-    setStatus("Prompt copied");
-    window.setTimeout(() => {
-      els.copyImagePrompt.textContent = originalLabel;
-    }, 1400);
-  } else {
-    selectElementText(els.imagePreviewPrompt);
-    setStatus("Не удалось скопировать автоматически. Текст промпта выделен.");
-  }
+  state.values[recipe.taskId] = { ...structuredClone(initialValues[recipe.taskId]), ...recipe.values };
+  state.settings[recipe.taskId] = { ...createDefaultSettings()[recipe.taskId], ...recipe.settings };
+  state.activeTask = recipe.taskId;
+  state.results = state.histories[recipe.taskId] || [];
+  state.selectedUrls.clear();
+  saveWorkspaceState();
+  closeImagePreview();
+  renderAll();
+  setStatus("Поля заполнены настройками этой генерации", true);
 }
 
 function fileToDataUrl(file) {
