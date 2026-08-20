@@ -62,6 +62,8 @@ const FAILED_STATUSES = new Set(["failed", "error", "timeout", "canceled", "canc
 const HISTORY_STORAGE_KEY = "prompt-studio-image-history-v1";
 const GALLERY_SIZE_STORAGE_KEY = "prompt-studio-gallery-size-v1";
 const MAX_HISTORY_ITEMS = 80;
+const REFERENCE_MAX_DIMENSION = 1024;
+const REFERENCE_IMAGE_QUALITY = 0.8;
 
 const PALETTES = [
   { id: "purple-pink", label: "Фиолетовый / розовый", prompt: "фиолетовый / розовый цвет", swatch: "linear-gradient(135deg, #7c3aed, #ec4899)" },
@@ -594,6 +596,7 @@ async function generateImages() {
   if (state.activeTask === "liveops" && !inputReferences.length) {
     inputReferences = await Promise.all(BUILT_IN_REFERENCES.liveops.map((src) => loadReferenceDataUrl(src)));
   }
+  inputReferences = await Promise.all(inputReferences.map((dataUrl) => optimizeReferenceDataUrl(dataUrl)));
   const taskId = state.activeTask;
   state.isGenerating = true;
   state.generatingTaskId = taskId;
@@ -616,10 +619,11 @@ async function generateImages() {
         inputReferences,
       }),
     });
-    const data = await response.json();
+    const data = await readApiResponse(response);
 
     if (!response.ok) {
-      throw new Error(data?.error || "Generation failed");
+      const message = data?.error || "Generation failed";
+      throw new Error(/request entity|request en/i.test(message) ? "Референсы слишком тяжелые. Попробуйте загрузить их заново." : message);
     }
 
     const modelLabel = MODELS[modelKey]?.label || "Image";
@@ -1019,6 +1023,50 @@ function fileToDataUrl(file) {
   });
 }
 
+function readApiResponse(response) {
+  return response.text().then((text) => {
+    try {
+      return text ? JSON.parse(text) : {};
+    } catch {
+      return { error: text || "The server returned an invalid response" };
+    }
+  });
+}
+
+function loadImageElement(file) {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    const objectUrl = URL.createObjectURL(file);
+    image.addEventListener("load", () => {
+      URL.revokeObjectURL(objectUrl);
+      resolve(image);
+    }, { once: true });
+    image.addEventListener("error", () => {
+      URL.revokeObjectURL(objectUrl);
+      reject(new Error("Reference unavailable"));
+    }, { once: true });
+    image.src = objectUrl;
+  });
+}
+
+async function optimizeReference(file) {
+  if (!file.type?.startsWith("image/")) return fileToDataUrl(file);
+
+  const image = await loadImageElement(file);
+  const scale = Math.min(1, REFERENCE_MAX_DIMENSION / Math.max(image.naturalWidth, image.naturalHeight));
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
+  canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
+  canvas.getContext("2d").drawImage(image, 0, 0, canvas.width, canvas.height);
+  return canvas.toDataURL("image/jpeg", REFERENCE_IMAGE_QUALITY);
+}
+
+async function optimizeReferenceDataUrl(dataUrl) {
+  const response = await fetch(dataUrl);
+  if (!response.ok) throw new Error("Reference unavailable");
+  return optimizeReference(await response.blob());
+}
+
 async function addReferences(files) {
   const refs = state.references[state.activeTask];
   const slots = Math.max(0, 6 - refs.length);
@@ -1027,7 +1075,7 @@ async function addReferences(files) {
   const nextRefs = await Promise.all(
     selectedFiles.map(async (file) => ({
       name: file.name,
-      dataUrl: await fileToDataUrl(file),
+      dataUrl: await optimizeReference(file),
     })),
   );
 
