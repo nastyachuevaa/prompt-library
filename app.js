@@ -1,122 +1,312 @@
 const SEEDREAM_PREFIX =
   "dynamic angled iphone shot, warm storytelling composition, dynamic tilted iphone shot, slight motion blur for realism, candid cinematic everyday moment, shot on iphone, phone quality, phone grain, iphone colors, dynamic angle, storytelling composition, dramatic composition, flirty vibe, low contrast, no studio lighting, slight hand shake, imperfect crop, iPhone front-camera,";
 
-const CHARACTER_PREFIX = "A realistic front-facing iPhone photo of";
 const CHARACTER_SUFFIX = "Plain gray studio wall background, natural indoor phone lighting, raw realistic iPhone photo";
+const BACKGROUND_REMOVAL_ENABLED = true;
 
-const topics = [
-  {
-    id: "character-appearance",
-    title: "NB Appearance Options",
-    category: "Изображения",
-    enabled: true,
-  },
-  {
-    id: "seedream-realism",
-    title: "OF style SeeDream",
-    category: "Изображения",
-    enabled: true,
-  },
-  {
-    id: "button-icon",
-    title: "LiveOps button",
-    category: "Изображения",
-    enabled: true,
-  },
-  {
-    id: "avatar-portrait",
-    title: "Avatars",
-    category: "Изображения",
-    enabled: true,
-  },
-];
-
-const palettes = [
-  {
-    id: "purple-pink",
-    label: "Фиолетовый / розовый",
-    prompt: "фиолетовый / розовый цвет",
-    gradient: "linear-gradient(135deg, #7c3aed, #ec4899)",
-  },
-  {
-    id: "ice-blue",
-    label: "Ледяной голубой",
-    prompt: "ледяной голубой цвет",
-    gradient: "linear-gradient(135deg, #38bdf8, #818cf8)",
-  },
-  {
-    id: "mint-lime",
-    label: "Мятный / лайм",
-    prompt: "мятный / лаймовый цвет",
-    gradient: "linear-gradient(135deg, #34d399, #a3e635)",
-  },
-  {
-    id: "coral-peach",
-    label: "Коралловый / персик",
-    prompt: "коралловый / персиковый цвет",
-    gradient: "linear-gradient(135deg, #fb7185, #fdba74)",
-  },
-];
-
-const referencesByTopic = {
-  "button-icon": [
-    {
-      title: "Реф 1",
-      src: "assets/ref-camera.png",
-    },
-  ],
-  "seedream-realism": [],
-  "character-appearance": [],
-  "avatar-portrait": [],
+const MODELS = {
+  "nano-banana-pro": { label: "Nano Banana Pro", resolutions: ["1K", "2K", "4K"] },
+  "seedream-4.5": { label: "SeeDream 4.5", resolutions: ["2K", "4K"] },
+  "gpt-image-2": { label: "GPT Image 2", resolutions: ["1K", "2K", "4K"] },
 };
 
-const formState = {
-  "button-icon": {
+const TASKS = [
+  {
+    id: "appearance",
+    title: "NB Appearance Options",
+    modelLabel: "Nano Banana Pro",
+    defaultModel: "nano-banana-pro",
+    modelOptions: ["nano-banana-pro"],
+    defaultAspect: "3:4",
+    defaultResolution: "1K",
+    defaultCount: 2,
+  },
+  {
+    id: "seedream",
+    title: "OF style SeeDream",
+    modelLabel: "SeeDream / Nano / GPT",
+    defaultModel: "seedream-4.5",
+    modelOptions: ["seedream-4.5", "nano-banana-pro", "gpt-image-2"],
+    defaultAspect: "9:16",
+    defaultResolution: "2K",
+    defaultCount: 2,
+  },
+  {
+    id: "liveops",
+    title: "LiveOps button",
+    modelLabel: "Nano Banana Pro",
+    defaultModel: "nano-banana-pro",
+    modelOptions: ["nano-banana-pro"],
+    defaultAspect: "1:1",
+    defaultResolution: "1K",
+    defaultCount: 4,
+  },
+  {
+    id: "avatars",
+    title: "Avatars",
+    modelLabel: "Nano / GPT",
+    defaultModel: "nano-banana-pro",
+    modelOptions: ["nano-banana-pro", "gpt-image-2"],
+    defaultAspect: "3:4",
+    defaultResolution: "1K",
+    defaultCount: 2,
+  },
+];
+
+const ASPECTS = ["auto", "1:1", "3:4", "4:3", "2:3", "3:2", "9:16", "16:9", "5:4", "4:5", "21:9"];
+const RESOLUTIONS = ["1K", "2K", "4K"];
+const POLL_INTERVAL_MS = 3000;
+const GENERATION_TIMEOUT_MS = 300000;
+const COMPLETED_STATUSES = new Set(["completed", "succeeded", "success", "done"]);
+const FAILED_STATUSES = new Set(["failed", "error", "timeout", "canceled", "cancelled"]);
+const HISTORY_STORAGE_KEY = "prompt-studio-image-history-v1";
+const GALLERY_SIZE_STORAGE_KEY = "prompt-studio-gallery-size-v1";
+const WORKSPACE_STATE_STORAGE_KEY = "prompt-studio-workspace-state-v1";
+const MAX_HISTORY_ITEMS = 80;
+const REFERENCE_MAX_DIMENSION = 1024;
+const REFERENCE_IMAGE_QUALITY = 0.8;
+
+const PALETTES = [
+  { id: "purple-pink", label: "Фиолетовый / розовый", prompt: "фиолетовый / розовый цвет", swatch: "linear-gradient(135deg, #7c3aed, #ec4899)" },
+  { id: "ice-blue", label: "Ледяной голубой", prompt: "ледяной голубой цвет", swatch: "linear-gradient(135deg, #38bdf8, #818cf8)" },
+  { id: "mint-lime", label: "Мятный / лайм", prompt: "мятный / лаймовый цвет", swatch: "linear-gradient(135deg, #34d399, #a3e635)" },
+  { id: "coral-peach", label: "Коралловый / персик", prompt: "коралловый / персиковый цвет", swatch: "linear-gradient(135deg, #fb7185, #fdba74)" },
+];
+
+const BUILT_IN_REFERENCES = {
+  liveops: ["assets/ref-camera.png"],
+};
+
+const initialValues = {
+  appearance: {
+    gender: "adult man",
+    age: "",
+    description: "",
+    avoid: "",
+  },
+  seedream: {
+    idea: "",
+    extra: "",
+  },
+  liveops: {
     subject: "",
     palette: "purple-pink",
     customColor: "",
     details: "",
   },
-  "seedream-realism": {
-    mode: "grok",
-    directIdea: "",
-    grokIdea: "",
-    grokCount: "10",
-    grokResults: [],
-    grokRawText: "",
-  },
-  "character-appearance": {
-    gender: "",
-    age: "",
-    appearanceBase: "",
-    avoid: "",
-    count: "10",
-    results: [],
-    rawText: "",
-  },
-  "avatar-portrait": {
-    gender: "",
+  avatars: {
+    gender: "man",
     expression: "",
     clothing: "",
   },
 };
 
-const referencePayloads = new Map();
-let activeTopicId = "character-appearance";
+function createEmptyHistories() {
+  return Object.fromEntries(TASKS.map((task) => [task.id, []]));
+}
+
+function normalizeSavedImage(image) {
+  if (!image || typeof image.url !== "string" || !isUsableImageUrl(image.url)) return null;
+
+  return {
+    id: typeof image.id === "string" ? image.id : "",
+    url: image.url,
+    sourceUrl: typeof image.sourceUrl === "string" ? image.sourceUrl : image.url,
+    mediaType: typeof image.mediaType === "string" ? image.mediaType : "image/png",
+    modelLabel: typeof image.modelLabel === "string" ? image.modelLabel : "Image",
+    prompt: typeof image.prompt === "string" ? image.prompt : "",
+    recipe: normalizeImageRecipe(image.recipe),
+    taskId: typeof image.taskId === "string" ? image.taskId : "",
+    createdAt: typeof image.createdAt === "string" ? image.createdAt : "",
+  };
+}
+
+function normalizeImageRecipe(recipe) {
+  if (!recipe || typeof recipe !== "object" || !TASKS.some((task) => task.id === recipe.taskId)) return null;
+  const task = TASKS.find((item) => item.id === recipe.taskId);
+  const values = {};
+  Object.keys(initialValues[task.id]).forEach((key) => {
+    if (typeof recipe.values?.[key] === "string") values[key] = recipe.values[key];
+  });
+
+  const settings = {};
+  if (task.modelOptions.includes(recipe.settings?.model)) settings.model = recipe.settings.model;
+  if (ASPECTS.includes(recipe.settings?.aspect)) settings.aspect = recipe.settings.aspect;
+  if (RESOLUTIONS.includes(recipe.settings?.resolution)) settings.resolution = recipe.settings.resolution;
+  if (Number.isFinite(recipe.settings?.count)) settings.count = Math.min(Math.max(Math.floor(recipe.settings.count), 1), 4);
+
+  return { taskId: task.id, values, settings };
+}
+
+function createImageRecipe(taskId = state.activeTask) {
+  return {
+    taskId,
+    values: structuredClone(state.values[taskId]),
+    settings: structuredClone(state.settings[taskId]),
+  };
+}
+
+function isUsableImageUrl(url) {
+  if (typeof url !== "string" || !url) return false;
+  if (url.startsWith("data:image/")) return true;
+  if (url.startsWith("/api/image?file=")) return true;
+
+  try {
+    const parsed = new URL(url);
+    if (!["http:", "https:"].includes(parsed.protocol)) return false;
+    if (parsed.hostname === "api.atlascloud.ai") return false;
+    if (parsed.pathname.includes("/prediction/")) return false;
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function loadSavedHistories() {
+  const histories = createEmptyHistories();
+
+  try {
+    const saved = JSON.parse(localStorage.getItem(HISTORY_STORAGE_KEY) || "{}");
+    TASKS.forEach((task) => {
+      histories[task.id] = Array.isArray(saved[task.id])
+        ? saved[task.id].map(normalizeSavedImage).filter(Boolean).slice(0, MAX_HISTORY_ITEMS)
+        : [];
+    });
+  } catch {
+    return histories;
+  }
+
+  return histories;
+}
+
+function saveHistories(histories) {
+  try {
+    localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(histories));
+  } catch {
+    // History is a convenience layer; generation should keep working even if storage is full.
+  }
+}
+
+const savedHistories = loadSavedHistories();
+
+function createDefaultSettings() {
+  return Object.fromEntries(
+    TASKS.map((task) => [
+      task.id,
+      {
+        model: task.defaultModel,
+        aspect: task.defaultAspect,
+        resolution: task.defaultResolution,
+        count: task.defaultCount,
+      },
+    ]),
+  );
+}
+
+function loadWorkspaceState() {
+  const values = structuredClone(initialValues);
+  const settings = createDefaultSettings();
+  let activeTask = "appearance";
+
+  try {
+    const storedDraft = sessionStorage.getItem(WORKSPACE_STATE_STORAGE_KEY) || localStorage.getItem(WORKSPACE_STATE_STORAGE_KEY) || "{}";
+    const saved = JSON.parse(storedDraft);
+    if (TASKS.some((task) => task.id === saved.activeTask)) activeTask = saved.activeTask;
+    TASKS.forEach((task) => {
+      const savedValues = saved.values?.[task.id];
+      if (savedValues && typeof savedValues === "object") {
+        Object.keys(values[task.id]).forEach((key) => {
+          if (typeof savedValues[key] === "string") values[task.id][key] = savedValues[key];
+        });
+      }
+
+      const savedSettings = saved.settings?.[task.id];
+      if (savedSettings && typeof savedSettings === "object") {
+        if (task.modelOptions.includes(savedSettings.model)) settings[task.id].model = savedSettings.model;
+        if (ASPECTS.includes(savedSettings.aspect)) settings[task.id].aspect = savedSettings.aspect;
+        if (RESOLUTIONS.includes(savedSettings.resolution)) settings[task.id].resolution = savedSettings.resolution;
+        if (Number.isFinite(savedSettings.count)) settings[task.id].count = Math.min(Math.max(Math.floor(savedSettings.count), 1), 4);
+      }
+    });
+  } catch {
+    // A malformed draft should never prevent the studio from opening.
+  }
+
+  return { activeTask, values, settings };
+}
+
+function saveWorkspaceState() {
+  const serialized = JSON.stringify({ activeTask: state.activeTask, values: state.values, settings: state.settings });
+
+  try {
+    sessionStorage.setItem(WORKSPACE_STATE_STORAGE_KEY, serialized);
+  } catch {
+    // Local storage below remains as a longer-lived fallback.
+  }
+
+  try {
+    localStorage.setItem(WORKSPACE_STATE_STORAGE_KEY, serialized);
+  } catch {
+    // Keeping the current session usable matters more than saving a draft.
+  }
+}
+
+const savedWorkspaceState = loadWorkspaceState();
+
+function loadGallerySize() {
+  const saved = Number(localStorage.getItem(GALLERY_SIZE_STORAGE_KEY));
+  return Number.isFinite(saved) ? Math.min(Math.max(saved, 160), 420) : 260;
+}
+
+const state = {
+  activeTask: savedWorkspaceState.activeTask,
+  values: savedWorkspaceState.values,
+  settings: savedWorkspaceState.settings,
+  references: Object.fromEntries(TASKS.map((task) => [task.id, []])),
+  histories: savedHistories,
+  results: savedHistories[savedWorkspaceState.activeTask] || [],
+  isGenerating: false,
+  generatingTaskId: "",
+  pendingCount: 0,
+  status: "",
+  gallerySize: loadGallerySize(),
+  selectedUrls: new Set(),
+  remoteHistoryLoaded: new Set(),
+  removingUrls: new Set(),
+};
+
+const referenceCache = new Map();
 
 const els = {
-  topicList: document.querySelector("#topicList"),
-  builderCategory: document.querySelector("#builderCategory"),
-  builderTitle: document.querySelector("#builderTitle"),
-  promptForm: document.querySelector("#promptForm"),
-  resultTitle: document.querySelector("#resultTitle"),
-  promptOutput: document.querySelector("#promptOutput"),
-  promptCards: document.querySelector("#promptCards"),
-  copyButton: document.querySelector("#copyButton"),
+  taskTabs: document.querySelector("#taskTabs"),
+  taskModelLabel: document.querySelector("#taskModelLabel"),
+  taskTitle: document.querySelector("#taskTitle"),
+  briefForm: document.querySelector("#briefForm"),
   resetButton: document.querySelector("#resetButton"),
-  refsSection: document.querySelector("#refsSection"),
-  refsGrid: document.querySelector("#refsGrid"),
+  promptPreview: document.querySelector("#promptPreview"),
+  copyPromptButton: document.querySelector("#copyPromptButton"),
+  modelSelect: document.querySelector("#modelSelect"),
+  aspectSelect: document.querySelector("#aspectSelect"),
+  resolutionSelect: document.querySelector("#resolutionSelect"),
+  countInput: document.querySelector("#countInput"),
+  referenceInput: document.querySelector("#referenceInput"),
+  referenceList: document.querySelector("#referenceList"),
+  clearRefsButton: document.querySelector("#clearRefsButton"),
+  generateButton: document.querySelector("#generateButton"),
   statusText: document.querySelector("#statusText"),
+  resultsGrid: document.querySelector("#resultsGrid"),
+  gallerySize: document.querySelector("#gallerySize"),
+  selectionToolbar: document.querySelector("#selectionToolbar"),
+  selectionCount: document.querySelector("#selectionCount"),
+  deleteSelectedButton: document.querySelector("#deleteSelectedButton"),
+  imagePreviewDialog: document.querySelector("#imagePreviewDialog"),
+  imagePreview: document.querySelector("#imagePreview"),
+  imagePreviewClose: document.querySelector("#imagePreviewClose"),
+  imagePreviewPrev: document.querySelector("#imagePreviewPrev"),
+  imagePreviewNext: document.querySelector("#imagePreviewNext"),
+  imagePreviewCanvas: document.querySelector("#imagePreviewCanvas"),
+  imagePreviewPrompt: document.querySelector("#imagePreviewPrompt"),
+  copyImagePrompt: document.querySelector("#copyImagePrompt"),
 };
 
 function escapeHTML(value) {
@@ -127,1205 +317,1080 @@ function escapeHTML(value) {
     .replaceAll('"', "&quot;");
 }
 
-function getTopic(topicId = activeTopicId) {
-  return topics.find((topic) => topic.id === topicId) || topics[0];
+function getTask(taskId = state.activeTask) {
+  return TASKS.find((task) => task.id === taskId) || TASKS[0];
 }
 
-function fieldValue(id) {
-  return document.querySelector(`#${id}`)?.value.trim() || "";
+function getSettings() {
+  return state.settings[state.activeTask];
 }
 
-function renderTopics() {
-  els.topicList.innerHTML = topics
-    .map(
-      (topic) => `
-        <button
-          class="topic-button"
-          type="button"
-          data-topic="${topic.id}"
-          ${topic.enabled ? "" : "disabled"}
-          ${topic.id === activeTopicId ? 'aria-current="true"' : ""}
-        >
-          <span class="topic-title">${topic.title}</span>
-        </button>
-      `,
-    )
-    .join("");
+function getEffectiveModel() {
+  const task = getTask();
+  const selected = getSettings().model;
+  return task.modelOptions.includes(selected) ? selected : task.defaultModel;
 }
 
-function renderButtonIconForm() {
-  const state = formState["button-icon"];
+function setStatus(message, persist = false) {
+  state.status = message;
+  els.statusText.textContent = message;
+  window.clearTimeout(setStatus.timer);
+  if (!persist) {
+    setStatus.timer = window.setTimeout(() => {
+      state.status = "";
+      els.statusText.textContent = "";
+    }, 2400);
+  }
+}
 
-  els.promptForm.innerHTML = `
-    <label class="field">
-      <span>Предмет на кнопке</span>
-      <input
-        id="subjectInput"
-        name="subject"
-        type="text"
-        value="${escapeHTML(state.subject)}"
-        placeholder="например, календарь, ключ, корзина"
-        autocomplete="off"
-      />
-    </label>
+function renderTabs() {
+  els.taskTabs.innerHTML = TASKS.map(
+    (task) => `
+      <button
+        class="task-tab"
+        type="button"
+        data-task="${task.id}"
+        ${task.id === state.activeTask ? 'aria-current="true"' : ""}
+      >
+        ${task.title}
+      </button>
+    `,
+  ).join("");
+}
 
-    <fieldset class="field color-field">
-      <legend>Цвет</legend>
-      <div class="swatch-grid" id="paletteOptions"></div>
-      <div class="custom-color-option" id="customColorOption">
-        <input
-          class="custom-color-radio"
-          id="customColorRadio"
-          type="radio"
-          name="palette"
-          value="custom"
-          ${state.palette === "custom" ? "checked" : ""}
-        />
-        <label class="custom-color-body" for="customColorInput">
-          <span>Свой цвет</span>
-          <input
-            id="customColorInput"
-            name="customColor"
-            type="text"
-            value="${escapeHTML(state.customColor)}"
-            placeholder="например, серебряный / лавандовый"
-            autocomplete="off"
-          />
-        </label>
-      </div>
-    </fieldset>
+function renderAppearanceForm() {
+  const values = state.values.appearance;
+  return `
+    <div class="appearance-quick-fields">
+      <label class="field compact-select-field">
+        <span>Пол</span>
+        <select data-input="gender" aria-label="Пол">
+          <option value="adult man" ${values.gender === "adult man" ? "selected" : ""}>Мужчина</option>
+          <option value="adult woman" ${values.gender === "adult woman" ? "selected" : ""}>Женщина</option>
+        </select>
+      </label>
+      <label class="field">
+        <span>Возраст</span>
+        <input data-input="age" type="text" value="${escapeHTML(values.age)}" placeholder="например, 28-30" autocomplete="off" />
+      </label>
+      <label class="field">
+        <span>Запреты</span>
+        <input data-input="avoid" type="text" value="${escapeHTML(values.avoid)}" placeholder="борода, татуировки, яркий макияж" autocomplete="off" />
+      </label>
+    </div>
 
     <label class="field">
-      <span>Дополнительные детали</span>
-      <textarea
-        id="detailsInput"
-        name="details"
-        rows="4"
-        placeholder="например, без фона, мягкий контур"
-      >${escapeHTML(state.details)}</textarea>
+      <span>Описание</span>
+      <textarea class="compact-description" data-input="description" rows="3" placeholder="раса/этничность, внешность, волосы, глаза, тело, вайб, одежда">${escapeHTML(values.description)}</textarea>
     </label>
   `;
-
-  renderPalettes();
-  bindButtonIconControls();
 }
 
 function renderSeedreamForm() {
-  const state = formState["seedream-realism"];
-
-  els.promptForm.innerHTML = `
-    <fieldset class="field seedream-mode-field">
-      <legend>Опция</legend>
-      <div class="mode-grid seedream-mode-grid">
-        <label class="mode-option ai-mode">
-          <input
-            type="radio"
-            name="seedreamMode"
-            value="grok"
-            ${state.mode === "grok" ? "checked" : ""}
-          />
-          <span class="mode-copy">
-            <span class="mode-title">Развить через Grok</span>
-            <span class="mode-meta">Подборка отдельных вариантов</span>
-          </span>
-        </label>
-        <label class="mode-option direct-mode">
-          <input
-            type="radio"
-            name="seedreamMode"
-            value="direct"
-            ${state.mode === "direct" ? "checked" : ""}
-          />
-          <span class="mode-copy">
-            <span class="mode-title">Добавить мою идею</span>
-            <span class="mode-meta">Один готовый промпт</span>
-          </span>
-        </label>
-      </div>
-    </fieldset>
-
-    <div class="mode-panel" data-mode-panel="direct" ${state.mode === "direct" ? "" : "hidden"}>
-      <label class="field">
-        <span>Моя идея</span>
-        <textarea
-          id="seedreamDirectIdeaInput"
-          name="directIdea"
-          rows="6"
-          placeholder="например, девушка смеется в лифте, кадр будто снят случайно"
-        >${escapeHTML(state.directIdea)}</textarea>
-      </label>
-    </div>
-
-    <section class="ai-helper mode-panel" data-mode-panel="grok" aria-labelledby="aiHelperTitle" ${state.mode === "grok" ? "" : "hidden"}>
-      <div class="ai-helper-heading">
-        <h3 id="aiHelperTitle">Grok</h3>
-      </div>
-      <div class="ai-helper-grid">
-        <label class="field">
-          <span>Примерный запрос</span>
-          <textarea
-            id="seedreamGrokIdeaInput"
-            name="grokIdea"
-            rows="7"
-            placeholder="например, хочу 10 разных сцен про девушку после свидания, снято как случайный селфи-кадр"
-          >${escapeHTML(state.grokIdea)}</textarea>
-        </label>
-        <label class="field small-field">
-          <span>Сколько</span>
-          <input
-            id="seedreamGrokCountInput"
-            name="grokCount"
-            type="number"
-            min="1"
-            max="30"
-            value="${escapeHTML(state.grokCount)}"
-          />
-        </label>
-      </div>
-      <div class="ai-actions">
-        <button class="primary-button" type="button" id="grokGenerateButton">Сгенерировать через Grok</button>
-        <button class="ghost-button" type="button" id="aiRequestButton">Скопировать запрос</button>
-      </div>
-    </section>
+  const values = state.values.seedream;
+  return `
+    <label class="field">
+      <span>Описание сцены</span>
+      <textarea class="compact-description" data-input="idea" rows="3" placeholder="сцена, человек, одежда, место, эмоция, детали и запреты">${escapeHTML(values.idea)}</textarea>
+    </label>
   `;
-
-  bindSeedreamControls();
 }
 
-function renderCharacterForm() {
-  const state = formState["character-appearance"];
-
-  els.promptForm.innerHTML = `
-    <section class="fixed-brief" aria-label="Фиксированные требования">
-      <span>iPhone фото</span>
-      <span>front-facing</span>
-      <span>серый студийный фон</span>
-      <span>raw realistic</span>
-      <span>attractive</span>
-    </section>
-
-    <div class="field-row character-basics-row">
-      <div class="field choice-field" id="characterGenderField" role="radiogroup" aria-labelledby="characterGenderLabel">
-        <span class="field-label" id="characterGenderLabel">Пол</span>
-        <div class="choice-grid">
-          <label class="choice-option">
-            <input
-              type="radio"
-              name="characterGender"
-              value="adult man"
-              ${state.gender === "adult man" ? "checked" : ""}
-            />
-            <span>Мужчина</span>
-          </label>
-          <label class="choice-option">
-            <input
-              type="radio"
-              name="characterGender"
-              value="adult woman"
-              ${state.gender === "adult woman" ? "checked" : ""}
-            />
-            <span>Женщина</span>
-          </label>
-        </div>
-      </div>
-
-      <label class="field">
-        <span class="field-label">Возраст</span>
-        <input
-          id="characterAgeInput"
-          name="age"
-          type="text"
-          value="${escapeHTML(state.age)}"
-          placeholder="например, 28-30"
-          autocomplete="off"
-        />
-      </label>
-    </div>
-
+function renderLiveopsForm() {
+  const values = state.values.liveops;
+  return `
     <label class="field">
-      <span class="field-label">Описание</span>
-      <textarea
-        class="compact-textarea character-appearance-textarea"
-        id="characterAppearanceBaseInput"
-        name="appearanceBase"
-        rows="4"
-        placeholder="раса/этничность, кожа, волосы, глаза, лицо, тело, особенности фигуры, вайб"
-      >${escapeHTML(state.appearanceBase)}</textarea>
+      <span>Предмет</span>
+      <input data-input="subject" type="text" value="${escapeHTML(values.subject)}" placeholder="например, камера, подарок, молния" autocomplete="off" />
     </label>
 
-    <div class="field-row compact-row">
+    <div class="liveops-options">
       <label class="field">
-        <span>Запреты</span>
-        <textarea
-          class="compact-textarea"
-          id="characterAvoidInput"
-          name="avoid"
-          rows="3"
-          placeholder="что точно не нужно: борода, татуировки, улыбка, яркий макияж, похожесть на конкретного актера"
-        >${escapeHTML(state.avoid)}</textarea>
+        <span>Цвет</span>
+        <select data-input="palette" aria-label="Цвет">
+          ${PALETTES.map(
+            (palette) => `<option value="${palette.id}" ${values.palette === palette.id ? "selected" : ""}>${palette.label}</option>`,
+          ).join("")}
+        </select>
       </label>
-
-      <label class="field small-field">
-        <span>Сколько</span>
-        <input
-          id="characterCountInput"
-          name="count"
-          type="number"
-          min="1"
-          max="20"
-          value="${escapeHTML(state.count)}"
-        />
+      <label class="field">
+        <span>Свой цвет</span>
+        <input data-input="customColor" type="text" value="${escapeHTML(values.customColor)}" placeholder="например, серебряный / лавандовый" autocomplete="off" />
       </label>
-    </div>
-
-    <div class="character-actions">
-      <button class="primary-button" type="button" id="characterGenerateButton">Сгенерировать варианты внешности</button>
     </div>
   `;
-
-  bindCharacterControls();
 }
 
 function renderAvatarForm() {
-  const state = formState["avatar-portrait"];
-
-  els.promptForm.innerHTML = `
-    <section class="fixed-brief" aria-label="Фиксированные требования">
-      <span>Image 1 identity</span>
-      <span>серый фон</span>
-      <span>85mm portrait</span>
-      <span>natural light</span>
-    </section>
-
-    <fieldset class="field choice-field" id="avatarGenderField">
-      <legend>Пол</legend>
-      <div class="choice-grid">
-        <label class="choice-option">
-          <input
-            type="radio"
-            name="avatarGender"
-            value="man"
-            ${state.gender === "man" ? "checked" : ""}
-          />
-          <span>Мужчина</span>
-        </label>
-        <label class="choice-option">
-          <input
-            type="radio"
-            name="avatarGender"
-            value="woman"
-            ${state.gender === "woman" ? "checked" : ""}
-          />
-          <span>Женщина</span>
-        </label>
-      </div>
-    </fieldset>
-
-    <div class="field-row">
+  const values = state.values.avatars;
+  return `
+    <div class="avatar-form-fields">
+      <label class="field compact-select-field">
+        <span>Пол</span>
+        <select data-input="gender" aria-label="Пол">
+          <option value="man" ${values.gender === "man" ? "selected" : ""}>Мужчина</option>
+          <option value="woman" ${values.gender === "woman" ? "selected" : ""}>Женщина</option>
+        </select>
+      </label>
       <label class="field">
         <span>Выражение лица</span>
-        <textarea
-          class="compact-textarea"
-          id="avatarExpressionInput"
-          name="expression"
-          rows="4"
-          placeholder="например, спокойный уверенный взгляд, легкая улыбка"
-        >${escapeHTML(state.expression)}</textarea>
-      </label>
-
-      <label class="field">
-        <span>Одежда</span>
-        <textarea
-          class="compact-textarea"
-          id="avatarClothingInput"
-          name="clothing"
-          rows="4"
-          placeholder="например, черная водолазка, свободный серый пиджак"
-        >${escapeHTML(state.clothing)}</textarea>
+        <textarea class="avatar-description" data-input="expression" rows="3" placeholder="например, спокойный уверенный взгляд, легкая улыбка, чёрная водолазка и свободный серый пиджак">${escapeHTML(values.expression)}</textarea>
       </label>
     </div>
   `;
 }
 
-function renderPalettes() {
-  const state = formState["button-icon"];
-  const paletteOptions = document.querySelector("#paletteOptions");
-  if (!paletteOptions) return;
+function renderForm() {
+  if (state.activeTask === "appearance") els.briefForm.innerHTML = renderAppearanceForm();
+  if (state.activeTask === "seedream") els.briefForm.innerHTML = renderSeedreamForm();
+  if (state.activeTask === "liveops") els.briefForm.innerHTML = renderLiveopsForm();
+  if (state.activeTask === "avatars") els.briefForm.innerHTML = renderAvatarForm();
+}
 
-  paletteOptions.innerHTML = palettes
-    .map(
-      (palette) => `
-        <label class="swatch-option">
-          <input
-            type="radio"
-            name="palette"
-            value="${palette.id}"
-            ${state.palette === palette.id ? "checked" : ""}
-          />
-          <span class="swatch" style="background: ${palette.gradient}"></span>
-          <span class="swatch-name">${palette.label}</span>
-        </label>
-      `,
-    )
+function renderSettings() {
+  const task = getTask();
+  const settings = getSettings();
+  const modelKey = getEffectiveModel();
+  const resolutionOptions = MODELS[modelKey]?.resolutions || RESOLUTIONS;
+
+  if (!resolutionOptions.includes(settings.resolution)) {
+    settings.resolution = resolutionOptions[0];
+  }
+
+  els.modelSelect.innerHTML = Object.entries(MODELS)
+    .filter(([id]) => task.modelOptions.includes(id))
+    .map(([id, model]) => {
+      return `<option value="${id}" ${getEffectiveModel() === id ? "selected" : ""}>${model.label}</option>`;
+    })
     .join("");
+  els.modelSelect.disabled = task.modelOptions.length === 1;
+
+  els.aspectSelect.innerHTML = ASPECTS.map(
+    (aspect) => `<option value="${aspect}" ${settings.aspect === aspect ? "selected" : ""}>${aspect === "auto" ? "Авто" : aspect}</option>`,
+  ).join("");
+
+  els.resolutionSelect.innerHTML = resolutionOptions.map(
+    (resolution) => `<option value="${resolution}" ${settings.resolution === resolution ? "selected" : ""}>${resolution}</option>`,
+  ).join("");
+
+  els.countInput.value = settings.count;
 }
 
 function renderReferences() {
-  const references = referencesByTopic[activeTopicId] || [];
-  els.refsSection.hidden = references.length === 0;
+  const refs = state.references[state.activeTask];
+  els.referenceList.innerHTML = refs.length
+    ? refs
+        .map(
+          (ref, index) => `
+            <article class="reference-item">
+              <img src="${ref.dataUrl}" alt="${escapeHTML(ref.name)}" />
+              <button class="icon-button" type="button" data-remove-ref="${index}" aria-label="Удалить референс">×</button>
+            </article>
+          `,
+        )
+        .join("")
+    : "";
+}
 
-  els.refsGrid.innerHTML = references
+function renderPromptPreview() {
+  if (els.promptPreview) els.promptPreview.value = makePrompt();
+}
+
+function renderResults() {
+  els.resultsGrid.style.setProperty("--gallery-tile", `${state.gallerySize}px`);
+  els.gallerySize.value = state.gallerySize;
+  const results = getActiveResults();
+  const resultUrls = new Set(results.map((image) => image.url));
+  state.selectedUrls = new Set([...state.selectedUrls].filter((url) => resultUrls.has(url)));
+  els.selectionToolbar.hidden = state.selectedUrls.size === 0;
+  els.selectionCount.textContent = `Выбрано: ${state.selectedUrls.size}`;
+  const isActiveTaskGenerating = state.isGenerating && state.generatingTaskId === state.activeTask;
+
+  if (isActiveTaskGenerating) {
+    const loadingCards = Array.from(
+      { length: Math.max(state.pendingCount, 1) },
+      () => '<div class="result-card loading-card"></div>',
+    ).join("");
+    els.resultsGrid.innerHTML = `${renderResultCards(results)}${loadingCards}`;
+    return;
+  }
+
+  if (!results.length) {
+    els.resultsGrid.innerHTML = `
+      <div class="empty-results">
+        <span>Ready</span>
+      </div>
+    `;
+    return;
+  }
+
+  els.resultsGrid.innerHTML = renderResultCards(results);
+}
+
+function renderResultCards(results = getActiveResults()) {
+  return results
     .map(
-      (reference, index) => `
-        <article class="ref-card">
-          <button class="ref-image-button" type="button" data-open-ref="${index}" aria-label="Открыть ${reference.title}">
-            <img src="${reference.src}" alt="${reference.title}" />
-          </button>
-          <div class="ref-actions">
-            <span>${reference.title}</span>
-            <button class="ghost-button compact" type="button" data-copy-ref="${index}">Копировать</button>
+      (image, index) => {
+        const isSelected = state.selectedUrls.has(image.url);
+        const canRemoveBackground = BACKGROUND_REMOVAL_ENABLED && ["liveops", "avatars"].includes(state.activeTask);
+        const isRemoving = state.removingUrls.has(image.url);
+        const isCutout = String(image.modelLabel || "").includes("без фона");
+        return `
+        <article class="result-card ${isSelected ? "is-selected" : ""} ${isCutout ? "is-cutout" : ""}">
+          <button class="select-image-button" type="button" data-select-image="${index}" aria-label="${isSelected ? "Снять выделение" : "Выделить изображение"}" aria-pressed="${isSelected}" title="${isSelected ? "Снять выделение" : "Выделить изображение"}">${isSelected ? "✓" : ""}</button>
+          <img src="${escapeHTML(image.url)}" alt="Generated image ${index + 1}" data-result-index="${index}" data-preview-image="${index}" />
+          <span class="image-load-error" aria-live="polite">Превью не загрузилось</span>
+          <div class="result-actions">
+            <span>${escapeHTML(image.modelLabel || "Image")}</span>
+            <div>
+              ${canRemoveBackground ? `<button class="ghost-button compact" type="button" data-remove-background="${index}" ${isRemoving ? "disabled" : ""}>${isRemoving ? "Вырезаем..." : "Убрать фон"}</button>` : ""}
+              <button class="ghost-button compact" type="button" data-copy-image="${index}">Copy</button>
+              <button class="ghost-button compact" type="button" data-download-image="${index}">Download</button>
+            </div>
           </div>
         </article>
-      `,
+      `;
+      },
     )
     .join("");
 }
 
-function preloadReferences() {
-  Object.values(referencesByTopic)
-    .flat()
-    .forEach((reference) => loadReferencePayload(reference.src));
+function getActiveResults() {
+  return state.histories[state.activeTask] || [];
 }
 
-function blobToDataUrl(blob) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.addEventListener("load", () => resolve(reader.result));
-    reader.addEventListener("error", reject);
-    reader.readAsDataURL(blob);
-  });
-}
-
-function loadReferencePayload(src) {
-  if (!referencePayloads.has(src)) {
-    referencePayloads.set(
-      src,
-      fetch(src).then(async (response) => {
-        if (!response.ok) throw new Error("reference image unavailable");
-
-        const blob = await response.blob();
-        const dataUrl = await blobToDataUrl(blob);
-        return { blob, dataUrl };
-      }),
-    );
-  }
-
-  return referencePayloads.get(src);
-}
-
-function copyImageFallback(dataUrl) {
-  const holder = document.createElement("div");
-  const image = document.createElement("img");
-  const selection = window.getSelection();
-  const range = document.createRange();
-
-  holder.contentEditable = "true";
-  holder.style.position = "fixed";
-  holder.style.left = "-9999px";
-  holder.style.top = "0";
-  image.src = dataUrl;
-  holder.appendChild(image);
-  document.body.appendChild(holder);
-
-  range.selectNode(image);
-  selection.removeAllRanges();
-  selection.addRange(range);
-
-  const copied = document.execCommand("copy");
-  selection.removeAllRanges();
-  holder.remove();
-  return copied;
-}
-
-function getSelectedPalette() {
-  const selected = document.querySelector('input[name="palette"]:checked')?.value;
-  return palettes.find((palette) => palette.id === selected) || palettes[0];
-}
-
-function isCustomColorSelected() {
-  return document.querySelector('input[name="palette"]:checked')?.value === "custom";
+function renderAll() {
+  const task = getTask();
+  els.taskTitle.textContent = task.title;
+  els.taskModelLabel.textContent = task.modelLabel;
+  renderTabs();
+  renderForm();
+  renderSettings();
+  renderReferences();
+  renderPromptPreview();
+  renderResults();
 }
 
 function getColorPrompt() {
-  const customColor = fieldValue("customColorInput");
-  if (!isCustomColorSelected()) return getSelectedPalette().prompt;
-  if (!customColor) return "*цвет*";
+  const values = state.values.liveops;
+  const customColor = values.customColor.trim();
+  if (customColor) return customColor.toLowerCase().includes("цвет") ? customColor : `${customColor} цвет`;
 
-  return customColor.toLowerCase().includes("цвет") ? customColor : `${customColor} цвет`;
+  const palette = PALETTES.find((item) => item.id === values.palette) || PALETTES[0];
+  return palette.prompt;
 }
 
-function makeButtonIconPrompt() {
-  const subject = fieldValue("subjectInput") || "*предмет который я хочу изобразить на кнопке*";
-  const color = getColorPrompt();
-  const details = fieldValue("detailsInput");
+function makeAppearancePrompt() {
+  const values = state.values.appearance;
+  const subject =
+    values.gender === "adult woman"
+      ? "an attractive adult woman"
+      : values.gender === "adult man"
+        ? "an attractive adult man"
+        : "an attractive adult person";
+  const age = values.age.trim() ? ` around ${values.age.trim()} years old` : "";
+  const description = values.description.trim() || "with realistic natural facial features, expressive eyes, detailed hair, balanced body proportions, and a strong memorable visual type";
+  const avoid = values.avoid.trim() ? ` Avoid: ${values.avoid.trim()}.` : "";
 
-  return `3d иконка ${subject} глассморфизм ${color} вот как примеры. скопируй стиль рефов. полупрозрачно, глассморфизм${details ? ` ${details}` : ""}`;
+  return `A realistic front-facing iPhone photo of ${subject}${age}, ${description}. ${CHARACTER_SUFFIX}.${avoid}`;
 }
 
 function makeSeedreamPrompt() {
-  const idea = fieldValue("seedreamDirectIdeaInput") || "*моя идея изображения*";
-
+  const values = state.values.seedream;
+  const idea = values.idea.trim() || "a candid everyday moment with a person caught mid-emotion";
   return `${SEEDREAM_PREFIX} ${idea}`;
 }
 
-function getSeedreamMode() {
-  return document.querySelector('input[name="seedreamMode"]:checked')?.value || "grok";
-}
-
-function isSeedreamGrokMode() {
-  return activeTopicId === "seedream-realism" && formState["seedream-realism"].mode === "grok";
-}
-
-function makePrompt() {
-  if (activeTopicId === "seedream-realism") {
-    if (getSeedreamMode() === "grok") return makeGrokRequest();
-    return makeSeedreamPrompt();
-  }
-
-  if (activeTopicId === "avatar-portrait") {
-    return makeAvatarPrompt();
-  }
-
-  return makeButtonIconPrompt();
-}
-
-function makeGrokRequest() {
-  const idea = fieldValue("seedreamGrokIdeaInput") || "*примерный запрос для серии изображений*";
-  const count = Math.min(Math.max(Number(fieldValue("seedreamGrokCountInput")) || 10, 1), 30);
-  const countPhrase = count === 1 ? "1 готовый промпт" : `${count} разных готовых промптов`;
-
-  return [
-    `Сделай ${countPhrase} для реалистичных изображений в Seedream.`,
-    "Каждый промпт должен начинаться строго с этой фразы, без изменений:",
-    SEEDREAM_PREFIX,
-    "",
-    "После этой фразы развей мой примерный запрос в разные конкретные сцены. Пиши по-английски. Каждый вариант должен быть отдельной строкой и полностью готовым промптом для генерации.",
-    "Сохрани вайб candid iPhone / phone quality / imperfect real-life shot. Верни только сами промпты: без объяснений, заголовков, нумерации, кавычек и пояснений.",
-    "",
-    `Примерный запрос: ${idea}`,
-  ].join("\n");
-}
-
-function briefLine(label, value) {
-  return `${label}: ${value || "не указано"}`;
-}
-
-function getCharacterGenderValue() {
-  return document.querySelector('input[name="characterGender"]:checked')?.value || "";
-}
-
-function getAvatarGenderValue() {
-  return document.querySelector('input[name="avatarGender"]:checked')?.value || "";
-}
-
-function makeCharacterRequest() {
-  const state = formState["character-appearance"];
-  const count = Math.min(Math.max(Number(fieldValue("characterCountInput") || state.count) || 10, 1), 20);
-  const countPhrase = count === 1 ? "1 готовый промпт" : `${count} разных готовых промптов`;
-  const gender = getCharacterGenderValue() || state.gender;
-  const attractiveSubject =
-    gender === "adult woman"
-      ? "an attractive adult woman"
-      : gender === "adult man"
-        ? "an attractive adult man"
-        : "an attractive adult person";
-
-  return [
-    `Сделай ${countPhrase} для Nano Banana: разные варианты внешности одного персонажа по моему брифу.`,
-    "Пиши готовые промпты по-английски. Каждый вариант должен быть отдельной строкой.",
-    `Обязательное условие для каждого варианта: используй ровно эту базу персонажа — ${attractiveSubject}. Не смешивай два пола в одном финальном промпте.`,
-    "",
-    "Обязательная структура каждого промпта:",
-    `${CHARACTER_PREFIX} ${attractiveSubject} {age if provided, otherwise plausible adult age}, {race/ethnicity and overall type}, {skin}, {hair}, {eyes}, {brows}, {cheekbones}, {nose}, {jawline}, {lips}, {gaze/expression}. {body and silhouette if specified}. {clothing if specified}. ${CHARACTER_SUFFIX}`,
-    "",
-    "Общие требования ко всем вариантам:",
-    "- realistic front-facing iPhone photo",
-    "- plain gray studio wall background",
-    "- natural indoor phone lighting",
-    "- raw realistic iPhone photo",
-    `- every final prompt must describe ${attractiveSubject}`,
-    "- detailed face and body description, close to the structure of the example",
-    "- no studio glamour, no fantasy, no cartoon, no plastic skin",
-    "- use the selected gender and age range from the brief when they are provided",
-    "- if a field is empty or marked не указано, do not write не указано in the final prompt; choose a plausible realistic detail that fits the brief",
-    "- treat Запреты as strict negative constraints: do not add those features, style choices, similarities, clothes, body traits, or moods to the character",
-    "",
-    "Если в описании указаны актеры или актрисы как ориентиры: не копируй их, не делай lookalike, не упоминай имена в финальных промптах. Используй только общие черты типажа, пропорций, вайба и выражения лица, создавая новых оригинальных людей.",
-    "Варианты должны отличаться друг от друга: форма лица, волосы, глаза, детали тела, одежда или выражение, но сохранять мои ключевые вводные.",
-    "Верни только сами промпты: без объяснений, заголовков, нумерации и кавычек.",
-    "Не используй имена персонажей в финальных промптах.",
-    "",
-    "Мой бриф:",
-    briefLine("Пол", getCharacterGenderValue() || state.gender),
-    briefLine("Возраст", fieldValue("characterAgeInput") || state.age),
-    briefLine("Описание", fieldValue("characterAppearanceBaseInput") || state.appearanceBase),
-    briefLine("Запреты", fieldValue("characterAvoidInput") || state.avoid),
-  ].join("\n");
+function makeLiveopsPrompt() {
+  const values = state.values.liveops;
+  const subject = values.subject.trim() || "button object";
+  return `3d иконка ${subject} глассморфизм ${getColorPrompt()} вот как примеры. скопируй стиль рефов. полупрозрачно, глассморфизм`;
 }
 
 function makeAvatarPrompt() {
-  const state = formState["avatar-portrait"];
-  const gender = getAvatarGenderValue() || state.gender;
-  const subject = gender === "woman" ? "adult woman" : gender === "man" ? "adult man" : "person";
-  const pronoun = gender === "woman" ? "she" : gender === "man" ? "he" : "the person";
-  const possessive = gender === "woman" ? "her" : gender === "man" ? "his" : "their";
-  const expression = fieldValue("avatarExpressionInput") || "*выражение лица которое мне нужно*";
-  const clothing = fieldValue("avatarClothingInput") || "*одежда которая мне нужна*";
+  const values = state.values.avatars;
+  const subject = values.gender === "woman" ? "adult woman" : "adult man";
+  const pronoun = values.gender === "woman" ? "she" : "he";
+  const possessive = values.gender === "woman" ? "her" : "his";
+  const look = values.expression.trim() || "neutral confident expression, direct eye contact, simple clean contemporary clothing";
 
   return [
     "Preserve from Image 1: identity STRUCTURE only — facial bone structure, eye shape and color, eyebrow shape, nose shape, mouth shape at rest, ear shape, jawline, hairline, hair length and texture, facial hair if present, skin tone, neck, build, and overall likeness. The person must read as the same individual actively living the moment described, not as a face transplanted from the reference.",
     `Subject: ${subject}.`,
     `Change: ${pronoun} is in a relaxed leaning attitude with weight off one hip, shifting ${possessive} weight in a relaxed manner, making direct eye contact with the camera.`,
-    `Expression: ${expression}.`,
-    `Clothing: ${clothing}.`,
-    "",
+    `Expression and clothing: ${look}.`,
     "Camera: 85mm portrait lens, f/2.0, eye-level, mid-thigh crop, subject centered, head, hair, hands, and arms fully in frame.",
-    "",
     "Lighting: soft natural daylight-balanced key from camera-front-left at ~45°, gentle white bounce fill from camera-front-right, balanced and even with a soft realistic falloff, neutral white balance, gentle catchlights in both eyes — should read as beautiful natural light, not a commercial studio. No backlight, rim light, edge light, hair light, colored gels, or cinematic grading.",
-    "",
     "Background: solid dark warm grey seamless backdrop, evenly lit, no gradient, no vignette, soft natural contact shadow where the subject meets the floor.",
-    "",
-    "Realism: visible skin pores, natural skin texture with subtle asymmetry and a hint of real-skin imperfection (faint freckle, slight cheek warmth, small natural mark, or fine texture), peach fuzz, individual hair strands and a few natural flyaways, fabric weave, natural folds and drape, contact shadows, subtle film grain consistent with a high-end digital camera — not retouched, not airbrushed.",
-  ].join("\n");
+    "Realism: visible skin pores, natural skin texture with subtle asymmetry and a hint of real-skin imperfection, peach fuzz, individual hair strands and a few natural flyaways, fabric weave, natural folds and drape, contact shadows, subtle film grain consistent with a high-end digital camera — not retouched, not airbrushed.",
+  ].join("\n\n");
 }
 
-function normalizePromptLine(line) {
-  return line
-    .replace(/^\s*(?:\d+[\).:\-]\s*|[-*•]\s*)/, "")
-    .replace(/^["'“”]+|["'“”]+$/g, "")
-    .trim();
+function makePrompt() {
+  if (state.activeTask === "appearance") return makeAppearancePrompt();
+  if (state.activeTask === "seedream") return makeSeedreamPrompt();
+  if (state.activeTask === "liveops") return makeLiveopsPrompt();
+  return makeAvatarPrompt();
 }
 
-function ensureSeedreamPrefix(prompt) {
-  const trimmed = normalizePromptLine(prompt);
-  if (!trimmed) return "";
-
-  if (trimmed.toLowerCase().startsWith(SEEDREAM_PREFIX.toLowerCase())) {
-    return trimmed;
-  }
-
-  return `${SEEDREAM_PREFIX} ${trimmed}`;
-}
-
-function ensureCharacterFrame(prompt) {
-  let trimmed = normalizePromptLine(prompt);
-  if (!trimmed) return "";
-
-  if (!trimmed.toLowerCase().startsWith(CHARACTER_PREFIX.toLowerCase())) {
-    trimmed = `${CHARACTER_PREFIX} ${trimmed}`;
-  }
-
-  const lowerPrompt = trimmed.toLowerCase();
-  if (!/(gray|grey)/.test(lowerPrompt) || !lowerPrompt.includes("iphone")) {
-    trimmed = `${trimmed.replace(/[. ]*$/, "")}. ${CHARACTER_SUFFIX}`;
-  }
-
-  return trimmed;
-}
-
-function parseJSONPromptList(text) {
-  try {
-    const parsed = JSON.parse(text);
-    if (Array.isArray(parsed)) return parsed.filter(Boolean).map((item) => String(item));
-  } catch {
-    // Grok is asked for plain lines, so JSON is only a defensive fallback.
-  }
-
-  return [];
-}
-
-function isIntroLine(line) {
-  return /^(sure|here|below|these are|prompts?:|конечно|вот|держи)\b/i.test(line);
-}
-
-function parseGrokPrompts(text) {
-  const jsonPrompts = parseJSONPromptList(text);
-  if (jsonPrompts.length) return jsonPrompts.map(ensureSeedreamPrefix).filter(Boolean);
-
-  const lines = String(text)
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter(Boolean);
-
-  if (!lines.length) return [];
-
-  const prompts = [];
-  let current = "";
-  const prefixStart = SEEDREAM_PREFIX.slice(0, 42).toLowerCase();
-  const hasStructuredLines = lines.some((line) => {
-    const cleaned = normalizePromptLine(line);
-    return cleaned.toLowerCase().startsWith(prefixStart) || /^\s*(?:\d+[\).:\-]|[-*•])\s*/.test(line);
-  });
-
-  if (!hasStructuredLines) {
-    return lines.filter((line) => !isIntroLine(line)).map(ensureSeedreamPrefix).filter(Boolean);
-  }
-
-  lines.forEach((line) => {
-    const cleaned = normalizePromptLine(line);
-    if (!cleaned || (!current && isIntroLine(cleaned))) return;
-
-    const startsLikePrompt = cleaned.toLowerCase().startsWith(prefixStart);
-    const startsLikeListItem = /^\s*(?:\d+[\).:\-]|[-*•])\s*/.test(line);
-
-    if ((startsLikePrompt || startsLikeListItem) && current) {
-      prompts.push(current);
-      current = cleaned;
-      return;
-    }
-
-    current = current ? `${current} ${cleaned}` : cleaned;
-  });
-
-  if (current) prompts.push(current);
-
-  return prompts.map(ensureSeedreamPrefix).filter(Boolean);
-}
-
-function parseCharacterPrompts(text) {
-  const jsonPrompts = parseJSONPromptList(text);
-  if (jsonPrompts.length) return jsonPrompts.map(ensureCharacterFrame).filter(Boolean);
-
-  const lines = String(text)
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter(Boolean);
-
-  if (!lines.length) return [];
-
-  const prompts = [];
-  let current = "";
-  const prefixStart = CHARACTER_PREFIX.toLowerCase();
-  const hasStructuredLines = lines.some((line) => {
-    const cleaned = normalizePromptLine(line);
-    return cleaned.toLowerCase().startsWith(prefixStart) || /^\s*(?:\d+[\).:\-]|[-*•])\s*/.test(line);
-  });
-
-  if (!hasStructuredLines) {
-    return lines.filter((line) => !isIntroLine(line)).map(ensureCharacterFrame).filter(Boolean);
-  }
-
-  lines.forEach((line) => {
-    const cleaned = normalizePromptLine(line);
-    if (!cleaned || (!current && isIntroLine(cleaned))) return;
-
-    const startsLikePrompt = cleaned.toLowerCase().startsWith(prefixStart);
-    const startsLikeListItem = /^\s*(?:\d+[\).:\-]|[-*•])\s*/.test(line);
-
-    if ((startsLikePrompt || startsLikeListItem) && current) {
-      prompts.push(current);
-      current = cleaned;
-      return;
-    }
-
-    current = current ? `${current} ${cleaned}` : cleaned;
-  });
-
-  if (current) prompts.push(current);
-
-  return prompts.map(ensureCharacterFrame).filter(Boolean);
-}
-
-function getGrokResults() {
-  return formState["seedream-realism"].grokResults || [];
-}
-
-function getCharacterResults() {
-  return formState["character-appearance"].results || [];
-}
-
-function getCardResults() {
-  if (isSeedreamGrokMode()) return getGrokResults();
-  if (activeTopicId === "character-appearance") return getCharacterResults();
-  return [];
-}
-
-function clearGrokResults() {
-  formState["seedream-realism"].grokResults = [];
-  formState["seedream-realism"].grokRawText = "";
-}
-
-function clearCharacterResults() {
-  formState["character-appearance"].results = [];
-  formState["character-appearance"].rawText = "";
-}
-
-function getGenerateEndpoint() {
-  const savedEndpoint = localStorage.getItem("prompt-library.generateEndpoint") || "";
-  if (savedEndpoint) return savedEndpoint;
-
+function getImageEndpoint() {
   if (location.hostname === "localhost" || location.hostname === "127.0.0.1" || location.hostname.endsWith(".vercel.app")) {
-    return "/api/generate";
+    return "/api/image";
   }
 
   return "";
 }
 
-function updateAccentColor() {
-  const palette = getSelectedPalette();
-  document.documentElement.style.setProperty("--accent", palette.gradient.match(/#([0-9a-f]{6})/i)?.[0] || "#7c3aed");
-  document.documentElement.style.setProperty("--accent-2", palette.gradient.match(/#[0-9a-f]{6}/gi)?.[1] || "#ec4899");
+function getHistoryEndpoint() {
+  return getImageEndpoint() ? "/api/history" : "";
 }
 
-function syncStateFromForm() {
-  if (activeTopicId === "button-icon") {
-    formState["button-icon"] = {
-      subject: fieldValue("subjectInput"),
-      palette: document.querySelector('input[name="palette"]:checked')?.value || "purple-pink",
-      customColor: fieldValue("customColorInput"),
-      details: fieldValue("detailsInput"),
-    };
+function getRemoveBackgroundEndpoint() {
+  return getImageEndpoint() ? "/api/remove-background" : "";
+}
+
+function validateBeforeGenerate() {
+  const values = state.values[state.activeTask];
+  if (state.activeTask === "liveops" && !values.subject.trim()) return "Введите предмет";
+  if (state.activeTask === "seedream" && !values.idea.trim()) return "Введите идею сцены";
+  if (state.activeTask === "appearance" && !values.description.trim()) return "Введите описание";
+  if (state.activeTask === "avatars" && !state.references.avatars.length) return "Добавьте Image 1";
+  return "";
+}
+
+async function generateImages() {
+  const endpoint = getImageEndpoint();
+  if (!endpoint) {
+    setStatus("Откройте preview на Vercel", true);
     return;
   }
 
-  if (activeTopicId === "seedream-realism") {
-    const previousState = formState["seedream-realism"];
-    formState["seedream-realism"] = {
-      mode: getSeedreamMode(),
-      directIdea: fieldValue("seedreamDirectIdeaInput"),
-      grokIdea: fieldValue("seedreamGrokIdeaInput"),
-      grokCount: fieldValue("seedreamGrokCountInput") || "10",
-      grokResults: previousState.grokResults || [],
-      grokRawText: previousState.grokRawText || "",
-    };
-  }
-
-  if (activeTopicId === "character-appearance") {
-    const previousState = formState["character-appearance"];
-    formState["character-appearance"] = {
-      gender: getCharacterGenderValue(),
-      age: fieldValue("characterAgeInput"),
-      appearanceBase: fieldValue("characterAppearanceBaseInput"),
-      avoid: fieldValue("characterAvoidInput"),
-      count: fieldValue("characterCountInput") || "10",
-      results: previousState.results || [],
-      rawText: previousState.rawText || "",
-    };
-  }
-
-  if (activeTopicId === "avatar-portrait") {
-    formState["avatar-portrait"] = {
-      gender: getAvatarGenderValue(),
-      expression: fieldValue("avatarExpressionInput"),
-      clothing: fieldValue("avatarClothingInput"),
-    };
-  }
-}
-
-function renderPromptCards(prompts) {
-  if (!prompts.length) {
-    els.promptCards.innerHTML = '<div class="results-empty">Пока нет вариантов</div>';
+  const validationError = validateBeforeGenerate();
+  if (validationError) {
+    setStatus(validationError);
     return;
   }
 
-  els.promptCards.innerHTML = prompts
-    .map(
-      (prompt, index) => `
-        <article class="prompt-card">
-          <header class="prompt-card-header">
-            <span class="prompt-number">${String(index + 1).padStart(2, "0")}</span>
-            <div class="prompt-card-actions">
-              <button class="ghost-button compact" type="button" data-copy-result="${index}">Копировать</button>
-            </div>
-          </header>
-          <p>${escapeHTML(prompt)}</p>
-        </article>
-      `,
-    )
-    .join("");
+  const settings = getSettings();
+  const modelKey = getEffectiveModel();
+  let inputReferences = state.references[state.activeTask].map((ref) => ref.dataUrl);
+  if (state.activeTask === "liveops" && !inputReferences.length) {
+    inputReferences = await Promise.all(BUILT_IN_REFERENCES.liveops.map((src) => loadReferenceDataUrl(src)));
+  }
+  inputReferences = await Promise.all(inputReferences.map((dataUrl) => optimizeReferenceDataUrl(dataUrl)));
+  const taskId = state.activeTask;
+  state.isGenerating = true;
+  state.generatingTaskId = taskId;
+  state.pendingCount = settings.count;
+  setStatus("Generating...", true);
+  renderResults();
+
+  try {
+    const prompt = makePrompt();
+    const recipe = createImageRecipe(taskId);
+    const response = await fetch(endpoint, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "start",
+        modelKey,
+        prompt,
+        aspectRatio: settings.aspect,
+        resolution: settings.resolution,
+        count: settings.count,
+        inputReferences,
+      }),
+    });
+    const data = await readApiResponse(response);
+
+    if (!response.ok) {
+      const message = data?.error || "Generation failed";
+      throw new Error(/request entity|request en/i.test(message) ? "Референсы слишком тяжелые. Попробуйте загрузить их заново." : message);
+    }
+
+    const modelLabel = MODELS[modelKey]?.label || "Image";
+    addGeneratedImages(data.images, modelLabel, taskId, prompt, recipe);
+    renderResults();
+
+    const pendingIds = (data.predictions || [])
+      .filter((prediction) => !COMPLETED_STATUSES.has(prediction.status) && !FAILED_STATUSES.has(prediction.status))
+      .map((prediction) => prediction.id)
+      .filter(Boolean);
+
+    if (pendingIds.length) {
+      state.pendingCount = pendingIds.length;
+      await pollImageJobs({ endpoint, modelKey, modelLabel, pendingIds, taskId, prompt, recipe });
+    } else {
+      state.pendingCount = 0;
+      setStatus(state.histories[taskId].length ? `Ready: ${state.histories[taskId].length}` : "No image returned");
+    }
+  } catch (error) {
+    const message = error.message?.includes("Atlas Cloud key")
+      ? "Добавьте Atlas Cloud API key в Vercel"
+      : error.message || "Не удалось сгенерировать";
+    setStatus(message, true);
+  } finally {
+    state.isGenerating = false;
+    state.generatingTaskId = "";
+    state.pendingCount = 0;
+    renderResults();
+  }
 }
 
-function renderStandardOutput(title, prompt) {
-  els.resultTitle.textContent = title;
-  els.promptOutput.hidden = false;
-  els.promptCards.hidden = true;
-  els.copyButton.hidden = false;
-  els.copyButton.textContent = "Копировать";
-  els.promptOutput.value = prompt;
+function wait(ms) {
+  return new Promise((resolve) => {
+    window.setTimeout(resolve, ms);
+  });
 }
 
-function renderGrokOutput() {
-  const prompts = getGrokResults();
+async function addGeneratedImages(images, modelLabel, taskId = state.activeTask, prompt = "", recipe = null) {
+  const results = state.histories[taskId] || [];
+  const existingUrls = new Set(results.map((image) => image.url));
+  const nextImages = (images || [])
+    .filter((image) => image?.url && isUsableImageUrl(image.url) && !existingUrls.has(image.url))
+    .map((image) => ({
+      ...image,
+      sourceUrl: image.sourceUrl || image.url,
+      modelLabel,
+      prompt: typeof image.prompt === "string" && image.prompt ? image.prompt : prompt,
+      recipe: normalizeImageRecipe(image.recipe) || recipe,
+      taskId,
+      createdAt: new Date().toISOString(),
+    }));
 
-  els.resultTitle.textContent = prompts.length ? "Варианты Grok" : "Grok";
-  els.promptOutput.hidden = true;
-  els.promptCards.hidden = false;
-  els.copyButton.hidden = prompts.length === 0;
-  els.copyButton.textContent = "Копировать все";
-  els.promptOutput.value = prompts.length ? prompts.join("\n\n") : makeGrokRequest();
-  renderPromptCards(prompts);
-}
+  if (!nextImages.length) return { addedCount: 0, savedCount: 0 };
 
-function renderCharacterOutput() {
-  const prompts = getCharacterResults();
+  state.histories[taskId] = [...nextImages, ...results].slice(0, MAX_HISTORY_ITEMS);
+  if (taskId === state.activeTask) {
+    state.results = state.histories[taskId];
+  }
+  saveHistories(state.histories);
+  const imagesToPersist = nextImages.filter((image) => !image.id);
+  const archive = imagesToPersist.length
+    ? await persistImages(taskId, imagesToPersist)
+    : { savedCount: nextImages.length };
 
-  els.resultTitle.textContent = prompts.length ? "Варианты внешности" : "NB Appearance Options";
-  els.promptOutput.hidden = true;
-  els.promptCards.hidden = false;
-  els.copyButton.hidden = prompts.length === 0;
-  els.copyButton.textContent = "Копировать все";
-  els.promptOutput.value = prompts.length ? prompts.join("\n\n") : makeCharacterRequest();
-  renderPromptCards(prompts);
-}
-
-function updatePrompt() {
-  syncStateFromForm();
-
-  if (isSeedreamGrokMode()) {
-    renderGrokOutput();
-  } else if (activeTopicId === "character-appearance") {
-    renderCharacterOutput();
-  } else {
-    renderStandardOutput("Готовый промпт", makePrompt());
+  if (taskId === state.activeTask) {
+    window.requestAnimationFrame(() => {
+      els.resultsGrid?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
   }
 
-  updateAccentColor();
+  return { addedCount: nextImages.length, ...archive };
 }
 
-function copyTextFallback(text) {
+function removeResultByUrl(url, taskId = state.activeTask) {
+  const results = state.histories[taskId] || [];
+  const nextResults = results.filter((image) => image.url !== url);
+  if (nextResults.length === results.length) return;
+
+  state.histories[taskId] = nextResults;
+  state.selectedUrls.delete(url);
+  if (taskId === state.activeTask) {
+    state.results = nextResults;
+  }
+  saveHistories(state.histories);
+  deletePersistedImages(taskId, results.filter((image) => image.url === url));
+  renderResults();
+}
+
+function mergeHistoryImages(taskId, images) {
+  const existing = state.histories[taskId] || [];
+  const merged = [...images.map(normalizeSavedImage).filter(Boolean), ...existing];
+  const seen = new Set();
+  state.histories[taskId] = merged.filter((image) => {
+    const key = image.id || image.sourceUrl || image.url;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  }).slice(0, MAX_HISTORY_ITEMS);
+  if (taskId === state.activeTask) state.results = state.histories[taskId];
+  saveHistories(state.histories);
+}
+
+async function persistImages(taskId, images) {
+  const endpoint = getHistoryEndpoint();
+  if (!endpoint || !images.length) return { savedCount: 0 };
+
+  const imagesToArchive = images.map((image) => ({
+    sourceUrl: image.sourceUrl || image.url,
+    mediaType: image.mediaType,
+    modelLabel: image.modelLabel,
+    prompt: image.prompt,
+    recipe: image.recipe,
+    createdAt: image.createdAt,
+  }));
+
+  try {
+    const response = await fetch(endpoint, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "save", taskId, images: imagesToArchive }),
+    });
+    if (!response.ok) return { savedCount: 0 };
+    const data = await response.json();
+    if (!data.images?.length) return { savedCount: 0 };
+    const savedBySource = new Map(data.images.map((image) => [image.clientSourceUrl || image.sourceUrl, normalizeSavedImage(image)]));
+    state.histories[taskId] = (state.histories[taskId] || []).map((image) => savedBySource.get(image.sourceUrl || image.url) || image);
+    if (taskId === state.activeTask) state.results = state.histories[taskId];
+    saveHistories(state.histories);
+    if (taskId === state.activeTask) renderResults();
+    return { savedCount: data.images.length };
+  } catch {
+    return { savedCount: 0 };
+  }
+}
+
+async function deletePersistedImages(taskId, images) {
+  const endpoint = getHistoryEndpoint();
+  const ids = images.map((image) => image.id).filter(Boolean);
+  if (!endpoint || !ids.length) return;
+
+  try {
+    await fetch(endpoint, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "delete", taskId, ids }),
+    });
+  } catch {
+    // The visible deletion is already complete.
+  }
+}
+
+async function removeBackground(index) {
+  const image = getActiveResults()[index];
+  const endpoint = getRemoveBackgroundEndpoint();
+  if (!BACKGROUND_REMOVAL_ENABLED || !image || !endpoint || !["liveops", "avatars"].includes(state.activeTask)) return;
+  if (!window.confirm("Вырезание фона использует Atlas Cloud и стоит примерно $0.086 за изображение. Продолжить?")) return;
+
+  state.removingUrls.add(image.url);
+  setStatus("Убираем фон...", true);
+  renderResults();
+  try {
+    const response = await fetch(endpoint, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ imageUrl: image.url, taskId: state.activeTask, modelLabel: image.modelLabel || "Image", prompt: image.prompt || "", recipe: image.recipe || createImageRecipe() }),
+    });
+    let data = await response.json();
+    if (!response.ok) throw new Error(data?.error || "Не удалось убрать фон");
+
+    const startedAt = Date.now();
+    while (!data.image && data.predictionId && Date.now() - startedAt < 90000) {
+      await wait(2000);
+      const pollResponse = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "poll", predictionId: data.predictionId, taskId: state.activeTask, modelLabel: image.modelLabel || "Image", prompt: image.prompt || "", recipe: image.recipe || createImageRecipe() }),
+      });
+      data = await pollResponse.json();
+      if (!pollResponse.ok) throw new Error(data?.error || "Не удалось получить результат вырезания");
+      if (["failed", "error", "canceled", "cancelled"].includes(String(data.status).toLowerCase())) {
+        throw new Error(data.error || "Atlas Cloud не смог убрать фон");
+      }
+    }
+
+    if (!data.image) throw new Error("Atlas Cloud пока не вернул версию без фона. Попробуйте еще раз.");
+    const result = await addGeneratedImages([data.image], `${image.modelLabel || "Image"} - без фона`, state.activeTask, image.prompt || "", image.recipe || createImageRecipe());
+    if (result.savedCount < result.addedCount) {
+      throw new Error("Версия без фона создана, но не сохранилась в галерее. Списание можно проверить в Atlas Cloud.");
+    }
+    setStatus("Готово: версия без фона сохранена в галерее", true);
+  } catch (error) {
+    const message = error.message?.includes("Atlas Cloud key")
+      ? "Добавьте ключ Atlas Cloud в Vercel"
+      : error.message || "Не удалось убрать фон";
+    setStatus(message, true);
+  } finally {
+    state.removingUrls.delete(image.url);
+    renderResults();
+  }
+}
+
+async function loadRemoteHistory(taskId) {
+  const endpoint = getHistoryEndpoint();
+  if (!endpoint || state.remoteHistoryLoaded.has(taskId)) return;
+  state.remoteHistoryLoaded.add(taskId);
+
+  try {
+    const response = await fetch(`${endpoint}?taskId=${encodeURIComponent(taskId)}`);
+    if (!response.ok) return;
+    const data = await response.json();
+    const localOnly = (state.histories[taskId] || []).filter((image) => !image.id);
+    mergeHistoryImages(taskId, data.images || []);
+    if (localOnly.length) persistImages(taskId, localOnly);
+    if (taskId === state.activeTask) renderResults();
+  } catch {
+    // The local gallery is a fallback until the persistent archive is reachable.
+  }
+}
+
+async function pollImageJobs({ endpoint, modelKey, modelLabel, pendingIds, taskId, prompt, recipe }) {
+  const startedAt = Date.now();
+  let remainingIds = pendingIds;
+
+  setStatus(`Atlas Cloud: ждем ${remainingIds.length}`, true);
+
+  while (remainingIds.length && Date.now() - startedAt < GENERATION_TIMEOUT_MS) {
+    await wait(POLL_INTERVAL_MS);
+
+    const response = await fetch(endpoint, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "poll",
+        modelKey,
+        predictionIds: remainingIds,
+      }),
+    });
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data?.error || "Generation failed");
+    }
+
+    const predictions = data.predictions || [];
+    const failed = predictions.find((prediction) => FAILED_STATUSES.has(prediction.status));
+    if (failed) {
+      throw new Error(failed.error || "Atlas Cloud generation failed");
+    }
+
+    addGeneratedImages(data.images, modelLabel, taskId, prompt, recipe);
+    remainingIds = predictions
+      .filter((prediction) => !COMPLETED_STATUSES.has(prediction.status))
+      .map((prediction) => prediction.id)
+      .filter(Boolean);
+    state.pendingCount = remainingIds.length;
+
+    setStatus(
+      remainingIds.length
+        ? `Atlas Cloud: готово ${state.histories[taskId].length}, ждем ${remainingIds.length}`
+        : `Ready: ${state.histories[taskId].length}`,
+      true,
+    );
+    renderResults();
+  }
+
+  if (remainingIds.length) {
+    throw new Error("Atlas Cloud пока не вернул картинку. Попробуйте 1 изображение или меньший размер.");
+  }
+}
+
+function copyTextFallback(text, container = document.body) {
   const textarea = document.createElement("textarea");
+  const previouslyFocused = document.activeElement;
   textarea.value = text;
   textarea.setAttribute("readonly", "");
   textarea.style.position = "fixed";
   textarea.style.left = "-9999px";
   textarea.style.top = "0";
-  document.body.appendChild(textarea);
+  textarea.style.opacity = "0";
+  container.appendChild(textarea);
+  textarea.focus({ preventScroll: true });
   textarea.select();
-  const copied = document.execCommand("copy");
+  textarea.setSelectionRange(0, textarea.value.length);
+  let copied = false;
+  try {
+    copied = document.execCommand("copy");
+  } catch {
+    copied = false;
+  }
   textarea.remove();
+  previouslyFocused?.focus?.({ preventScroll: true });
   return copied;
 }
 
-async function copyText(text, successMessage = "Скопировано") {
+function selectElementText(element) {
+  if (!element || !window.getSelection) return;
+  const range = document.createRange();
+  range.selectNodeContents(element);
+  const selection = window.getSelection();
+  selection.removeAllRanges();
+  selection.addRange(range);
+}
+
+async function copyPrompt() {
+  const prompt = makePrompt();
   try {
-    await navigator.clipboard.writeText(text);
-    setStatus(successMessage);
+    await navigator.clipboard.writeText(prompt);
+    setStatus("Prompt copied");
   } catch {
-    if (copyTextFallback(text)) {
-      setStatus(successMessage);
-    } else {
-      setStatus("Не удалось скопировать");
-    }
+    setStatus(copyTextFallback(prompt) ? "Prompt copied" : "Copy failed");
   }
 }
 
-async function copyReference(src) {
-  const payload = loadReferencePayload(src);
-
-  try {
-    if (navigator.clipboard?.write && typeof ClipboardItem !== "undefined") {
-      await navigator.clipboard.write([new ClipboardItem({ "image/png": payload.then((item) => item.blob) })]);
-      setStatus("Реф скопирован в буфер");
-      return;
-    }
-  } catch {
-    // The legacy path below covers browsers that block image clipboard writes.
+function dataUrlToBlob(dataUrl) {
+  const [header, base64] = dataUrl.split(",");
+  const mime = header.match(/data:(.*?);/)?.[1] || "image/png";
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let index = 0; index < binary.length; index += 1) {
+    bytes[index] = binary.charCodeAt(index);
   }
-
-  try {
-    const { dataUrl } = await payload;
-    if (!copyImageFallback(dataUrl)) throw new Error("legacy image copy failed");
-    setStatus("Реф скопирован в буфер");
-  } catch {
-    setStatus("Не удалось скопировать реф");
-  }
+  return new Blob([bytes], { type: mime });
 }
 
-async function generateWithGrok() {
-  syncStateFromForm();
-
-  const endpoint = getGenerateEndpoint();
-  if (!endpoint) {
-    setStatus("Backend еще не подключен");
-    return;
-  }
-
-  const button = document.querySelector("#grokGenerateButton");
-  const previousText = button?.textContent;
+async function copyImage(index) {
+  const image = getActiveResults()[index];
+  if (!image) return;
 
   try {
-    if (button) {
-      button.disabled = true;
-      button.textContent = "Генерирую...";
-    }
-    clearGrokResults();
-    renderGrokOutput();
-    setStatus("Генерирую...");
-
-    const response = await fetch(endpoint, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        request: makeGrokRequest(),
-      }),
-    });
-    const data = await response.json();
-
-    if (!response.ok) {
-      throw new Error(data?.error || "Generation failed");
+    if (!navigator.clipboard?.write || typeof ClipboardItem === "undefined") {
+      throw new Error("image clipboard unavailable");
     }
 
-    const prompts = parseGrokPrompts(data.text);
-    formState["seedream-realism"].grokRawText = data.text;
-    formState["seedream-realism"].grokResults = prompts.length ? prompts : [data.text.trim()].filter(Boolean);
-    renderGrokOutput();
-    setStatus(`Готово: ${formState["seedream-realism"].grokResults.length}`);
+    const blob = image.url.startsWith("data:")
+      ? dataUrlToBlob(image.url)
+      : await fetch(image.url).then((response) => response.blob());
+    const mediaType = blob.type || image.mediaType || "image/png";
+    await navigator.clipboard.write([new ClipboardItem({ [mediaType]: blob })]);
+    setStatus("Image copied");
   } catch {
-    setStatus("Не удалось сгенерировать");
-  } finally {
-    if (button) {
-      button.disabled = false;
-      button.textContent = previousText;
-    }
+    setStatus("Copy unavailable");
   }
 }
 
-async function generateCharacterVariants() {
-  syncStateFromForm();
-
-  const endpoint = getGenerateEndpoint();
-  if (!endpoint) {
-    setStatus("Backend еще не подключен");
-    return;
-  }
-
-  const button = document.querySelector("#characterGenerateButton");
-  const previousText = button?.textContent;
+async function downloadImage(index) {
+  const image = getActiveResults()[index];
+  if (!image) return;
 
   try {
-    if (button) {
-      button.disabled = true;
-      button.textContent = "Генерирую...";
-    }
-    clearCharacterResults();
-    renderCharacterOutput();
-    setStatus("Генерирую...");
-
-    const response = await fetch(endpoint, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        request: makeCharacterRequest(),
-      }),
-    });
-    const data = await response.json();
-
-    if (!response.ok) {
-      throw new Error(data?.error || "Generation failed");
-    }
-
-    const prompts = parseCharacterPrompts(data.text);
-    formState["character-appearance"].rawText = data.text;
-    formState["character-appearance"].results = prompts.length ? prompts : [data.text.trim()].filter(Boolean);
-    renderCharacterOutput();
-    setStatus(`Готово: ${formState["character-appearance"].results.length}`);
+    const response = image.url.startsWith("data:") ? null : await fetch(image.url);
+    if (response && !response.ok) throw new Error("image download failed");
+    const blob = image.url.startsWith("data:") ? dataUrlToBlob(image.url) : await response.blob();
+    const extension = blob.type === "image/jpeg" ? "jpg" : blob.type === "image/webp" ? "webp" : "png";
+    const link = document.createElement("a");
+    const objectUrl = URL.createObjectURL(blob);
+    link.href = objectUrl;
+    link.download = `prompt-studio-${index + 1}.${extension}`;
+    document.body.append(link);
+    link.click();
+    link.remove();
+    window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
+    setStatus("Image downloaded");
   } catch {
-    setStatus("Не удалось сгенерировать");
-  } finally {
-    if (button) {
-      button.disabled = false;
-      button.textContent = previousText;
+    setStatus("Download unavailable");
+  }
+}
+
+function showPreviewImage(index) {
+  const results = getActiveResults();
+  const image = results[index];
+  if (!image || !els.imagePreviewDialog || !els.imagePreview) return;
+  els.imagePreview.src = image.url;
+  els.imagePreview.alt = `Generated image ${index + 1}`;
+  const prompt = image.prompt || "";
+  els.imagePreviewPrompt.textContent = prompt || "Промпт для этой ранней генерации не был сохранен.";
+  els.copyImagePrompt.disabled = !image.recipe;
+  els.copyImagePrompt.textContent = "Вставить в поля";
+  els.imagePreviewCanvas.classList.toggle("is-cutout", String(image.modelLabel || "").includes("без фона"));
+  els.imagePreviewDialog.dataset.previewIndex = String(index);
+  els.imagePreviewPrev.disabled = index === 0;
+  els.imagePreviewNext.disabled = index === results.length - 1;
+}
+
+function openImagePreview(index) {
+  showPreviewImage(index);
+  if (els.imagePreviewDialog?.open || els.imagePreviewDialog?.hasAttribute("open")) return;
+  if (typeof els.imagePreviewDialog.showModal === "function") els.imagePreviewDialog.showModal();
+  else els.imagePreviewDialog.setAttribute("open", "");
+}
+
+function navigateImagePreview(direction) {
+  const currentIndex = Number(els.imagePreviewDialog?.dataset.previewIndex);
+  if (!Number.isInteger(currentIndex)) return;
+  showPreviewImage(currentIndex + direction);
+}
+
+function closeImagePreview() {
+  if (typeof els.imagePreviewDialog?.close === "function") els.imagePreviewDialog.close();
+  else els.imagePreviewDialog?.removeAttribute("open");
+}
+
+function copyImagePrompt() {
+  const currentIndex = Number(els.imagePreviewDialog?.dataset.previewIndex);
+  const recipe = normalizeImageRecipe(getActiveResults()[currentIndex]?.recipe);
+  if (!recipe) return;
+
+  state.values[recipe.taskId] = { ...structuredClone(initialValues[recipe.taskId]), ...recipe.values };
+  state.settings[recipe.taskId] = { ...createDefaultSettings()[recipe.taskId], ...recipe.settings };
+  state.activeTask = recipe.taskId;
+  state.results = state.histories[recipe.taskId] || [];
+  state.selectedUrls.clear();
+  saveWorkspaceState();
+  closeImagePreview();
+  renderAll();
+  setStatus("Поля заполнены настройками этой генерации", true);
+}
+
+function fileToDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.addEventListener("load", () => resolve(reader.result));
+    reader.addEventListener("error", reject);
+    reader.readAsDataURL(file);
+  });
+}
+
+function readApiResponse(response) {
+  return response.text().then((text) => {
+    try {
+      return text ? JSON.parse(text) : {};
+    } catch {
+      return { error: text || "The server returned an invalid response" };
     }
-  }
+  });
 }
 
-function setStatus(message) {
-  els.statusText.textContent = message;
-  window.clearTimeout(setStatus.timer);
-  setStatus.timer = window.setTimeout(() => {
-    els.statusText.textContent = "";
-  }, 1800);
+function loadImageElement(file) {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    const objectUrl = URL.createObjectURL(file);
+    image.addEventListener("load", () => {
+      URL.revokeObjectURL(objectUrl);
+      resolve(image);
+    }, { once: true });
+    image.addEventListener("error", () => {
+      URL.revokeObjectURL(objectUrl);
+      reject(new Error("Reference unavailable"));
+    }, { once: true });
+    image.src = objectUrl;
+  });
 }
 
-function getCurrentOutputText() {
-  const cardResults = getCardResults();
-  if (cardResults.length) {
-    return cardResults.join("\n\n");
-  }
+async function optimizeReference(file) {
+  if (!file.type?.startsWith("image/")) return fileToDataUrl(file);
 
-  return els.promptOutput.value;
+  const image = await loadImageElement(file);
+  const scale = Math.min(1, REFERENCE_MAX_DIMENSION / Math.max(image.naturalWidth, image.naturalHeight));
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
+  canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
+  canvas.getContext("2d").drawImage(image, 0, 0, canvas.width, canvas.height);
+  return canvas.toDataURL("image/jpeg", REFERENCE_IMAGE_QUALITY);
 }
 
-function resetForm() {
-  if (activeTopicId === "button-icon") {
-    formState["button-icon"] = {
-      subject: "",
-      palette: "purple-pink",
-      customColor: "",
-      details: "",
-    };
-  }
-
-  if (activeTopicId === "seedream-realism") {
-    formState["seedream-realism"] = {
-      mode: "grok",
-      directIdea: "",
-      grokIdea: "",
-      grokCount: "10",
-      grokResults: [],
-      grokRawText: "",
-    };
-  }
-
-  if (activeTopicId === "character-appearance") {
-    formState["character-appearance"] = {
-      gender: "",
-      age: "",
-      appearanceBase: "",
-      avoid: "",
-      count: "10",
-      results: [],
-      rawText: "",
-    };
-  }
-
-  if (activeTopicId === "avatar-portrait") {
-    formState["avatar-portrait"] = {
-      gender: "",
-      expression: "",
-      clothing: "",
-    };
-  }
-
-  renderActiveTopic();
+async function optimizeReferenceDataUrl(dataUrl) {
+  const response = await fetch(dataUrl);
+  if (!response.ok) throw new Error("Reference unavailable");
+  return optimizeReference(await response.blob());
 }
 
-function switchTopic(topicId) {
-  const topic = getTopic(topicId);
-  if (!topic.enabled || topic.id === activeTopicId) return;
+async function addReferences(files) {
+  const refs = state.references[state.activeTask];
+  const slots = Math.max(0, 6 - refs.length);
+  const selectedFiles = Array.from(files).slice(0, slots);
 
-  syncStateFromForm();
-  activeTopicId = topic.id;
-  renderActiveTopic();
-}
+  const nextRefs = await Promise.all(
+    selectedFiles.map(async (file) => ({
+      name: file.name,
+      dataUrl: await optimizeReference(file),
+    })),
+  );
 
-function renderActiveTopic() {
-  const topic = getTopic();
-  els.builderCategory.textContent = topic.category;
-  els.builderTitle.textContent = topic.title;
-  els.promptForm.classList.toggle("character-form", activeTopicId === "character-appearance");
-
-  renderTopics();
-  if (activeTopicId === "seedream-realism") {
-    renderSeedreamForm();
-  } else if (activeTopicId === "character-appearance") {
-    renderCharacterForm();
-  } else if (activeTopicId === "avatar-portrait") {
-    renderAvatarForm();
-  } else {
-    renderButtonIconForm();
-  }
-
+  refs.push(...nextRefs);
+  els.referenceInput.value = "";
   renderReferences();
-  updatePrompt();
 }
 
-function bindButtonIconControls() {
-  const customColorInput = document.querySelector("#customColorInput");
-  const customColorRadio = document.querySelector("#customColorRadio");
-  const customColorOption = document.querySelector("#customColorOption");
+async function loadReferenceDataUrl(src) {
+  if (!referenceCache.has(src)) {
+    referenceCache.set(
+      src,
+      fetch(src)
+        .then((response) => {
+          if (!response.ok) throw new Error("Reference unavailable");
+          return response.blob();
+        })
+        .then((blob) => fileToDataUrl(blob)),
+    );
+  }
 
-  customColorInput.addEventListener("focus", () => {
-    customColorRadio.checked = true;
-    updatePrompt();
-  });
-  customColorInput.addEventListener("input", () => {
-    customColorRadio.checked = true;
-  });
-  customColorOption.addEventListener("click", () => {
-    customColorRadio.checked = true;
-    updatePrompt();
-  });
+  return referenceCache.get(src);
 }
 
-function bindSeedreamControls() {
-  els.promptForm.querySelectorAll('input[name="seedreamMode"]').forEach((input) => {
-    input.addEventListener("change", () => {
-      const mode = input.value;
-      els.promptForm.querySelectorAll("[data-mode-panel]").forEach((panel) => {
-        panel.hidden = panel.dataset.modePanel !== mode;
-      });
-      updatePrompt();
-    });
-  });
-
-  document.querySelector("#grokGenerateButton").addEventListener("click", generateWithGrok);
-  document.querySelector("#aiRequestButton").addEventListener("click", () => {
-    syncStateFromForm();
-    copyText(makeGrokRequest(), "Запрос для Grok скопирован");
-  });
+function switchTask(taskId) {
+  if (!TASKS.some((task) => task.id === taskId)) return;
+  state.activeTask = taskId;
+  state.results = state.histories[taskId] || [];
+  state.selectedUrls.clear();
+  setStatus("");
+  saveWorkspaceState();
+  renderAll();
+  loadRemoteHistory(taskId);
 }
 
-function bindCharacterControls() {
-  document.querySelector("#characterGenerateButton").addEventListener("click", generateCharacterVariants);
+function resetTask() {
+  const task = getTask();
+  state.values[task.id] = structuredClone(initialValues[task.id]);
+  state.settings[task.id] = {
+    model: task.defaultModel,
+    aspect: task.defaultAspect,
+    resolution: task.defaultResolution,
+    count: task.defaultCount,
+  };
+  state.references[task.id] = [];
+  setStatus("");
+  saveWorkspaceState();
+  renderAll();
 }
 
 function handleFormInput(event) {
-  if (
-    activeTopicId === "seedream-realism" &&
-    event.target.matches("#seedreamGrokIdeaInput, #seedreamGrokCountInput")
-  ) {
-    clearGrokResults();
+  const input = event.target.closest("[data-input]");
+  if (!input) return;
+
+  state.values[state.activeTask][input.dataset.input] = input.value;
+  if (state.activeTask === "liveops" && input.dataset.input === "palette") {
+    state.values.liveops.customColor = "";
+    renderForm();
+  }
+  saveWorkspaceState();
+  renderPromptPreview();
+}
+
+function handleFormClick(event) {
+  const choice = event.target.closest(".choice-button");
+  if (choice) {
+    const row = choice.closest("[data-field]");
+    state.values[state.activeTask][row.dataset.field] = choice.dataset.value;
+    saveWorkspaceState();
+    renderForm();
+    renderPromptPreview();
+    return;
   }
 
-  if (activeTopicId === "character-appearance") {
-    clearCharacterResults();
-  }
-
-  updatePrompt();
 }
 
 function bindEvents() {
-  els.topicList.addEventListener("click", (event) => {
-    const button = event.target.closest("[data-topic]");
-    if (button) switchTopic(button.dataset.topic);
+  window.addEventListener("pagehide", saveWorkspaceState);
+  els.taskTabs.addEventListener("click", (event) => {
+    const tab = event.target.closest("[data-task]");
+    if (tab) switchTask(tab.dataset.task);
   });
 
-  els.promptForm.addEventListener("input", handleFormInput);
-  els.promptForm.addEventListener("change", handleFormInput);
-  els.copyButton.addEventListener("click", () => copyText(getCurrentOutputText()));
-  els.resetButton.addEventListener("click", resetForm);
-  els.refsGrid.addEventListener("click", (event) => {
-    const copyButton = event.target.closest("[data-copy-ref]");
-    const openButton = event.target.closest("[data-open-ref]");
-    const references = referencesByTopic[activeTopicId] || [];
-    const index = Number(copyButton?.dataset.copyRef ?? openButton?.dataset.openRef);
-    const reference = references[index];
-    if (!reference) return;
+  els.briefForm.addEventListener("input", handleFormInput);
+  els.briefForm.addEventListener("change", handleFormInput);
+  els.resetButton.addEventListener("click", resetTask);
+  els.briefForm.addEventListener("click", handleFormClick);
+  if (els.copyPromptButton) {
+    els.copyPromptButton.addEventListener("click", (event) => {
+      event.preventDefault();
+      copyPrompt();
+    });
+  }
 
-    if (copyButton) {
-      copyReference(reference.src);
+  els.modelSelect.addEventListener("change", () => {
+    getSettings().model = els.modelSelect.value;
+    saveWorkspaceState();
+    renderSettings();
+  });
+
+  els.aspectSelect.addEventListener("change", () => {
+    getSettings().aspect = els.aspectSelect.value;
+    saveWorkspaceState();
+    renderSettings();
+  });
+
+  els.resolutionSelect.addEventListener("change", () => {
+    getSettings().resolution = els.resolutionSelect.value;
+    saveWorkspaceState();
+    renderSettings();
+  });
+
+  els.countInput.addEventListener("input", () => {
+    getSettings().count = Math.min(Math.max(Number(els.countInput.value) || 1, 1), 4);
+    saveWorkspaceState();
+  });
+
+  els.referenceInput.addEventListener("change", () => addReferences(els.referenceInput.files));
+  if (els.clearRefsButton) {
+    els.clearRefsButton.addEventListener("click", () => {
+      state.references[state.activeTask] = [];
+      renderReferences();
+    });
+  }
+  els.generateButton.addEventListener("click", generateImages);
+  els.gallerySize.addEventListener("input", () => {
+    state.gallerySize = Math.min(Math.max(Number(els.gallerySize.value) || 260, 160), 420);
+    localStorage.setItem(GALLERY_SIZE_STORAGE_KEY, String(state.gallerySize));
+    renderResults();
+  });
+  els.deleteSelectedButton.addEventListener("click", () => {
+    const selected = state.selectedUrls;
+    const deleted = getActiveResults().filter((image) => selected.has(image.url));
+    state.histories[state.activeTask] = getActiveResults().filter((image) => !selected.has(image.url));
+    state.results = state.histories[state.activeTask];
+    state.selectedUrls.clear();
+    saveHistories(state.histories);
+    deletePersistedImages(state.activeTask, deleted);
+    renderResults();
+  });
+  els.referenceList.addEventListener("click", (event) => {
+    const removeButton = event.target.closest("[data-remove-ref]");
+    if (!removeButton) return;
+    state.references[state.activeTask].splice(Number(removeButton.dataset.removeRef), 1);
+    renderReferences();
+  });
+  els.resultsGrid.addEventListener("click", (event) => {
+    const selectButton = event.target.closest("[data-select-image]");
+    if (selectButton) {
+      const image = getActiveResults()[Number(selectButton.dataset.selectImage)];
+      if (!image) return;
+      if (state.selectedUrls.has(image.url)) state.selectedUrls.delete(image.url);
+      else state.selectedUrls.add(image.url);
+      renderResults();
       return;
     }
 
-    window.open(reference.src, "_blank");
-  });
-  els.promptCards.addEventListener("click", (event) => {
-    const copyButton = event.target.closest("[data-copy-result]");
-    const index = Number(copyButton?.dataset.copyResult);
-    const prompt = getCardResults()[index];
-    if (!prompt) return;
-
-    if (copyButton) {
-      copyText(prompt);
+    const removeBackgroundButton = event.target.closest("[data-remove-background]");
+    if (removeBackgroundButton) {
+      removeBackground(Number(removeBackgroundButton.dataset.removeBackground));
+      return;
     }
+
+    const copyButton = event.target.closest("[data-copy-image]");
+    if (copyButton) copyImage(Number(copyButton.dataset.copyImage));
+
+    const downloadButton = event.target.closest("[data-download-image]");
+    if (downloadButton) {
+      downloadImage(Number(downloadButton.dataset.downloadImage));
+      return;
+    }
+
+    const previewImage = event.target.closest("[data-preview-image]");
+    if (previewImage) openImagePreview(Number(previewImage.dataset.previewImage));
   });
+  els.imagePreviewClose.addEventListener("click", closeImagePreview);
+  els.imagePreviewPrev.addEventListener("click", () => navigateImagePreview(-1));
+  els.imagePreviewNext.addEventListener("click", () => navigateImagePreview(1));
+  els.copyImagePrompt.addEventListener("click", copyImagePrompt);
+  els.imagePreviewDialog.addEventListener("click", (event) => {
+    if (event.target === els.imagePreviewDialog) closeImagePreview();
+  });
+  document.addEventListener("keydown", (event) => {
+    const isPreviewOpen = els.imagePreviewDialog?.open || els.imagePreviewDialog?.hasAttribute("open");
+    if (!isPreviewOpen) return;
+    if (event.key === "ArrowLeft") {
+      event.preventDefault();
+      navigateImagePreview(-1);
+    }
+    if (event.key === "ArrowRight") {
+      event.preventDefault();
+      navigateImagePreview(1);
+    }
+    if (event.key === "Escape") closeImagePreview();
+  });
+  els.resultsGrid.addEventListener(
+    "error",
+    (event) => {
+      const image = event.target.closest("img[data-result-index]");
+      if (!image) return;
+      image.closest(".result-card")?.setAttribute("data-image-failed", "true");
+    },
+    true,
+  );
 }
 
-preloadReferences();
 bindEvents();
-renderActiveTopic();
+renderAll();
+loadRemoteHistory(state.activeTask);

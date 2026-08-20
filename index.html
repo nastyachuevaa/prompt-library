@@ -3,59 +3,111 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Библиотека промптов</title>
-    <link rel="stylesheet" href="styles.css?v=avatar-tab-1" />
+    <title>Prompt Studio</title>
+    <link rel="stylesheet" href="styles.css?v=preview-fit-24" />
   </head>
   <body>
-    <main class="app-shell" aria-label="Библиотека промптов">
-      <aside class="topics-panel" aria-label="Темы промптов">
+    <main class="studio-shell" aria-label="Prompt Studio">
+      <header class="topbar">
         <div class="brand">
-          <span class="brand-mark" aria-hidden="true">P</span>
+          <span class="brand-mark" aria-hidden="true">PS</span>
           <div>
-            <p class="eyebrow">Моя библиотека</p>
-            <h1>Промпты</h1>
+            <p class="eyebrow">Draft</p>
+            <h1>Prompt Studio</h1>
           </div>
         </div>
 
-        <nav class="topic-list" id="topicList" aria-label="Список тем"></nav>
-      </aside>
+        <nav class="task-tabs" id="taskTabs" aria-label="Основные задачи"></nav>
+      </header>
 
-      <section class="builder-panel" aria-labelledby="builderTitle">
-        <div class="builder-heading">
-          <div>
-            <p class="eyebrow" id="builderCategory">Изображения</p>
-            <h2 id="builderTitle">NB Appearance Options</h2>
+      <section class="workspace">
+        <section class="results-panel" aria-labelledby="resultsTitle">
+          <div class="results-header">
+            <div>
+              <p class="eyebrow">Output</p>
+              <h2 id="resultsTitle">Images</h2>
+            </div>
+            <div class="gallery-tools">
+              <label class="gallery-scale" for="gallerySize">
+                <span>Размер</span>
+                <input id="gallerySize" type="range" min="160" max="420" step="10" value="260" aria-label="Размер изображений в галерее" />
+              </label>
+              <div class="selection-toolbar" id="selectionToolbar" hidden>
+                <span id="selectionCount">Выбрано: 0</span>
+                <button class="delete-selected-button" type="button" id="deleteSelectedButton">Удалить выбранные</button>
+              </div>
+            </div>
           </div>
-          <button class="ghost-button" type="button" id="resetButton">Сбросить</button>
-        </div>
-
-        <form class="prompt-form" id="promptForm"></form>
-      </section>
-
-      <section class="result-panel" aria-labelledby="resultTitle">
-        <section class="refs-section" id="refsSection" aria-labelledby="refsTitle">
-          <div class="refs-header">
-            <h2 id="refsTitle">Рефы</h2>
-          </div>
-          <div class="refs-grid" id="refsGrid"></div>
+          <div class="results-grid" id="resultsGrid"></div>
         </section>
 
-        <div class="result-block">
-          <div class="result-header">
-            <h2 id="resultTitle">Готовый промпт</h2>
-            <button class="ghost-button" type="button" id="copyButton">
-              Копировать
-            </button>
-          </div>
-          <textarea id="promptOutput" readonly aria-label="Готовый промпт"></textarea>
-          <div class="prompt-cards" id="promptCards" hidden></div>
-          <div class="result-actions">
+        <section class="composer" aria-label="Параметры генерации">
+          <section class="brief-panel" aria-labelledby="taskTitle">
+            <div class="visually-hidden">
+              <div>
+                <p class="eyebrow" id="taskModelLabel">Nano Banana</p>
+                <h2 id="taskTitle">NB Appearance Options</h2>
+              </div>
+            </div>
+
+            <form class="brief-form" id="briefForm"></form>
+          </section>
+
+          <aside class="settings-panel" aria-labelledby="settingsTitle">
+            <h2 id="settingsTitle" class="visually-hidden">Generate</h2>
             <p class="status-text" id="statusText" aria-live="polite"></p>
-          </div>
-        </div>
+
+            <div class="settings-stack compact-controls">
+              <label class="field toolbar-control model-control">
+                <span class="visually-hidden">Model</span>
+                <select id="modelSelect" aria-label="Model"></select>
+              </label>
+
+              <label class="field toolbar-control">
+                <span class="visually-hidden">Формат</span>
+                <select id="aspectSelect" aria-label="Формат кадра"></select>
+              </label>
+              <label class="field toolbar-control">
+                <span class="visually-hidden">Качество</span>
+                <select id="resolutionSelect" aria-label="Качество изображения"></select>
+              </label>
+              <label class="field toolbar-control count-field">
+                <span class="visually-hidden">Images</span>
+                <input id="countInput" type="number" min="1" max="4" value="2" aria-label="Количество изображений" />
+              </label>
+            </div>
+
+            <section class="reference-box" aria-labelledby="referenceTitle">
+              <label class="upload-zone" id="referenceTitle" for="referenceInput">
+                <input id="referenceInput" type="file" accept="image/*" multiple />
+                <span>Добавить референсы</span>
+              </label>
+              <div class="reference-list" id="referenceList"></div>
+            </section>
+
+            <button class="reset-icon-button" type="button" id="resetButton" aria-label="Сбросить параметры" title="Сбросить параметры">↺</button>
+            <button class="primary-button generate-button" type="button" id="generateButton">Generate</button>
+          </aside>
+        </section>
       </section>
     </main>
 
-    <script src="app.js?v=avatar-tab-1" defer></script>
+    <dialog class="image-preview-dialog" id="imagePreviewDialog" aria-label="Просмотр изображения">
+      <button class="image-preview-close" type="button" id="imagePreviewClose" aria-label="Закрыть просмотр">×</button>
+      <div class="image-preview-layout">
+        <div class="image-preview-canvas" id="imagePreviewCanvas">
+          <button class="image-preview-nav image-preview-prev" type="button" id="imagePreviewPrev" aria-label="Предыдущее изображение" title="Предыдущее изображение">‹</button>
+          <img id="imagePreview" alt="Увеличенное изображение" />
+          <button class="image-preview-nav image-preview-next" type="button" id="imagePreviewNext" aria-label="Следующее изображение" title="Следующее изображение">›</button>
+        </div>
+        <aside class="image-preview-details">
+          <p class="eyebrow">Prompt</p>
+          <p class="image-preview-prompt" id="imagePreviewPrompt"></p>
+          <button class="ghost-button" type="button" id="copyImagePrompt">Вставить в поля</button>
+        </aside>
+      </div>
+    </dialog>
+
+    <script src="app.js?v=reuse-settings-14" defer></script>
   </body>
 </html>
