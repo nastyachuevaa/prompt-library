@@ -947,13 +947,13 @@ async function pollImageJobs({ endpoint, modelKey, modelLabel, pendingIds, taskI
   }
 }
 
-function copyTextFallback(text) {
+function copyTextFallback(text, container = document.body) {
   const textarea = document.createElement("textarea");
   textarea.value = text;
   textarea.setAttribute("readonly", "");
   textarea.style.position = "fixed";
   textarea.style.left = "-9999px";
-  document.body.appendChild(textarea);
+  container.appendChild(textarea);
   textarea.select();
   const copied = document.execCommand("copy");
   textarea.remove();
@@ -1061,11 +1061,23 @@ async function copyImagePrompt() {
   const currentIndex = Number(els.imagePreviewDialog?.dataset.previewIndex);
   const prompt = getActiveResults()[currentIndex]?.prompt;
   if (!prompt) return;
+  let copied = false;
   try {
     await navigator.clipboard.writeText(prompt);
-    setStatus("Prompt copied");
+    copied = true;
   } catch {
-    setStatus(copyTextFallback(prompt) ? "Prompt copied" : "Copy failed");
+    copied = copyTextFallback(prompt, els.imagePreviewDialog);
+  }
+
+  if (copied) {
+    const originalLabel = els.copyImagePrompt.textContent;
+    els.copyImagePrompt.textContent = "Скопировано";
+    setStatus("Prompt copied");
+    window.setTimeout(() => {
+      els.copyImagePrompt.textContent = originalLabel;
+    }, 1400);
+  } else {
+    setStatus("Copy failed");
   }
 }
 
