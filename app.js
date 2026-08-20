@@ -218,6 +218,8 @@ const els = {
   imagePreviewDialog: document.querySelector("#imagePreviewDialog"),
   imagePreview: document.querySelector("#imagePreview"),
   imagePreviewClose: document.querySelector("#imagePreviewClose"),
+  imagePreviewPrev: document.querySelector("#imagePreviewPrev"),
+  imagePreviewNext: document.querySelector("#imagePreviewNext"),
 };
 
 function escapeHTML(value) {
@@ -956,13 +958,28 @@ async function downloadImage(index) {
   }
 }
 
-function openImagePreview(index) {
-  const image = getActiveResults()[index];
+function showPreviewImage(index) {
+  const results = getActiveResults();
+  const image = results[index];
   if (!image || !els.imagePreviewDialog || !els.imagePreview) return;
   els.imagePreview.src = image.url;
   els.imagePreview.alt = `Generated image ${index + 1}`;
+  els.imagePreviewDialog.dataset.previewIndex = String(index);
+  els.imagePreviewPrev.disabled = index === 0;
+  els.imagePreviewNext.disabled = index === results.length - 1;
+}
+
+function openImagePreview(index) {
+  showPreviewImage(index);
+  if (els.imagePreviewDialog?.open || els.imagePreviewDialog?.hasAttribute("open")) return;
   if (typeof els.imagePreviewDialog.showModal === "function") els.imagePreviewDialog.showModal();
   else els.imagePreviewDialog.setAttribute("open", "");
+}
+
+function navigateImagePreview(direction) {
+  const currentIndex = Number(els.imagePreviewDialog?.dataset.previewIndex);
+  if (!Number.isInteger(currentIndex)) return;
+  showPreviewImage(currentIndex + direction);
 }
 
 function closeImagePreview() {
@@ -1155,8 +1172,23 @@ function bindEvents() {
     if (previewImage) openImagePreview(Number(previewImage.dataset.previewImage));
   });
   els.imagePreviewClose.addEventListener("click", closeImagePreview);
+  els.imagePreviewPrev.addEventListener("click", () => navigateImagePreview(-1));
+  els.imagePreviewNext.addEventListener("click", () => navigateImagePreview(1));
   els.imagePreviewDialog.addEventListener("click", (event) => {
     if (event.target === els.imagePreviewDialog) closeImagePreview();
+  });
+  document.addEventListener("keydown", (event) => {
+    const isPreviewOpen = els.imagePreviewDialog?.open || els.imagePreviewDialog?.hasAttribute("open");
+    if (!isPreviewOpen) return;
+    if (event.key === "ArrowLeft") {
+      event.preventDefault();
+      navigateImagePreview(-1);
+    }
+    if (event.key === "ArrowRight") {
+      event.preventDefault();
+      navigateImagePreview(1);
+    }
+    if (event.key === "Escape") closeImagePreview();
   });
   els.resultsGrid.addEventListener(
     "error",
