@@ -215,6 +215,9 @@ const els = {
   selectionToolbar: document.querySelector("#selectionToolbar"),
   selectionCount: document.querySelector("#selectionCount"),
   deleteSelectedButton: document.querySelector("#deleteSelectedButton"),
+  imagePreviewDialog: document.querySelector("#imagePreviewDialog"),
+  imagePreview: document.querySelector("#imagePreview"),
+  imagePreviewClose: document.querySelector("#imagePreviewClose"),
 };
 
 function escapeHTML(value) {
@@ -446,7 +449,7 @@ function renderResultCards(results = getActiveResults()) {
         return `
         <article class="result-card ${isSelected ? "is-selected" : ""} ${isCutout ? "is-cutout" : ""}">
           <button class="select-image-button" type="button" data-select-image="${index}" aria-label="${isSelected ? "Снять выделение" : "Выделить изображение"}" aria-pressed="${isSelected}" title="${isSelected ? "Снять выделение" : "Выделить изображение"}">${isSelected ? "✓" : ""}</button>
-          <img src="${escapeHTML(image.url)}" alt="Generated image ${index + 1}" data-result-index="${index}" />
+          <img src="${escapeHTML(image.url)}" alt="Generated image ${index + 1}" data-result-index="${index}" data-preview-image="${index}" />
           <span class="image-load-error" aria-live="polite">Превью не загрузилось</span>
           <div class="result-actions">
             <span>${escapeHTML(image.modelLabel || "Image")}</span>
@@ -953,6 +956,18 @@ async function downloadImage(index) {
   }
 }
 
+function openImagePreview(index) {
+  const image = getActiveResults()[index];
+  if (!image || !els.imagePreviewDialog || !els.imagePreview) return;
+  els.imagePreview.src = image.url;
+  els.imagePreview.alt = `Generated image ${index + 1}`;
+  els.imagePreviewDialog.showModal();
+}
+
+function closeImagePreview() {
+  els.imagePreviewDialog?.close();
+}
+
 function fileToDataUrl(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -1129,7 +1144,17 @@ function bindEvents() {
     if (copyButton) copyImage(Number(copyButton.dataset.copyImage));
 
     const downloadButton = event.target.closest("[data-download-image]");
-    if (downloadButton) downloadImage(Number(downloadButton.dataset.downloadImage));
+    if (downloadButton) {
+      downloadImage(Number(downloadButton.dataset.downloadImage));
+      return;
+    }
+
+    const previewImage = event.target.closest("[data-preview-image]");
+    if (previewImage) openImagePreview(Number(previewImage.dataset.previewImage));
+  });
+  els.imagePreviewClose.addEventListener("click", closeImagePreview);
+  els.imagePreviewDialog.addEventListener("click", (event) => {
+    if (event.target === els.imagePreviewDialog) closeImagePreview();
   });
   els.resultsGrid.addEventListener(
     "error",
